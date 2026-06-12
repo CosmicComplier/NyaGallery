@@ -1,0 +1,66 @@
+# NyaGallery backend configuration.
+#
+# Copy this file to nyagallery.toml, or start with:
+#   nyagallery --config path\to\nyagallery.toml serve
+#
+# Environment variables still work and override this file:
+#   NYAGALLERY_STORAGE, NYAGALLERY_DATABASE_URL, NYAGALLERY_SECURE_COOKIES,
+#   PIXIV_REFRESH_TOKEN, NYAGALLERY_SITE_ICP_BEIAN, NYAGALLERY_REDIS_URL, etc.
+
+[core]
+# Required. Root directory for originals, metadata, cache, tags and logs.
+storage = "storage"
+
+# Optional. Empty uses storage/nyagallery.db.
+# Examples:
+# database_url = "sqlite:///E:/Code/NyaGallery/storage/nyagallery.db"
+# database_url = "postgresql+psycopg://user:password@127.0.0.1:5432/nyagallery"
+database_url = ""
+
+# Optional. Empty uses storage/tags/catalog.json.
+tag_catalog_path = ""
+
+[server]
+host = "127.0.0.1"
+port = 8001
+access_log = false
+
+# Enable when serving directly over HTTPS or behind a trusted HTTPS proxy
+# that preserves secure cookies correctly.
+secure_cookies = false
+
+[site]
+# Public project links shown by the frontend.
+project_homepage = "https://github.com/NayaCcR/NyaGallery"
+repository = "https://github.com/NayaCcR/NyaGallery"
+
+# Optional ICP filing number. Leave empty to hide it in the footer.
+# Example: icp_beian = "京ICP备00000000号-1"
+icp_beian = ""
+
+[pixiv]
+# Optional. Prefer saved per-user credentials in the admin page for daily use.
+refresh_token = ""
+cookie = ""
+
+# Defaults shown in the admin Pixiv panel.
+default_request_delay_seconds = 1.0
+max_concurrency = 1
+
+[redis]
+# Optional. Empty disables Redis and keeps all runtime state local to the process.
+# Install support with:
+#   python -m pip install -e ".[redis]"
+#
+# Examples:
+# url = "redis://127.0.0.1:6379/0"
+# url = "rediss://:password@example.redis.cloud:6380/0"
+url = ""
+
+# Prefix for all NyaGallery Redis keys. Use a unique value per deployment.
+key_prefix = "nyagallery"
+
+# When true, request concurrency/rate/traffic limits are shared through Redis
+# instead of being tracked in local process memory. Useful once multiple API
+# instances are running behind the same frontend/proxy.
+security_limiter = false

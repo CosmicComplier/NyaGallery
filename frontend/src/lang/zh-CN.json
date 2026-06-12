@@ -1,0 +1,108 @@
+{
+  "admin": {
+    "ops": {
+      "lastUpdated": "上次刷新：{time}",
+      "pollingActive": "自动刷新：转码中，2.5 秒",
+      "pollingIdle": "自动刷新：空闲，15 秒",
+      "pollingPaused": "自动刷新：页面隐藏时暂停"
+    },
+    "logs": {
+      "eventStatus": "{event}：{status}",
+      "events": {
+        "transcode": "转码",
+        "transcode_request": "转码请求",
+        "upload": "上传"
+      },
+      "hidden": "隐藏",
+      "hiddenTitle": "带有 hide 标签，不会出现在首页和普通搜索中",
+      "messages": {
+        "media cache generated": "媒体缓存已生成",
+        "media cache generation failed": "媒体缓存生成失败",
+        "requestedBy": "由 {username} 请求",
+        "starting media cache generation": "开始生成媒体缓存"
+      },
+      "statuses": {
+        "error": "失败",
+        "queued": "排队中",
+        "running": "运行中",
+        "success": "成功"
+      }
+    },
+    "cache": {
+      "detailMissing": "缺少 {missing}；{fallback}",
+      "fallbackOriginal": "预览使用原图回退",
+      "missingCache": "缓存",
+      "preview": "预览图",
+      "previewCached": "预览图已缓存",
+      "previewThumbCached": "预览图/缩略图已缓存",
+      "statusMissing": "无压缩缓存",
+      "statusPartial": "缓存不完整",
+      "statusQueued": "转码排队中",
+      "statusReady": "缓存已生成",
+      "thumb": "缩略图"
+    },
+    "transcode": {
+      "durationElapsed": "总耗时：{value}",
+      "durationStage": "阶段耗时：{value}",
+      "etaComplete": "已完成",
+      "etaError": "已失败",
+      "etaEstimating": "估算中",
+      "etaRemaining": "预计剩余：{value}",
+      "framesStatic": "静态/待统计",
+      "latest": "转码：{status} {progress}%",
+      "stageCurrent": "当前阶段：{stage}",
+      "stageDetails": {
+        "encoding_preview": "正在编码静态预览图。",
+        "encoding_thumb": "预览图已完成，正在生成 AVIF 缩略图。",
+        "encoding_webp": "正在写入动图 WebP 预览。当前编码器是一次性保存，内部没有逐帧回调，进度会在写完后跳到缩略图阶段。",
+        "reading_frames": "正在读取、转置并缩放每一帧；fps 是当前预处理速度。",
+        "waiting": "等待下一次进度更新。"
+      },
+      "stages": {
+        "done": "完成",
+        "encoding_preview": "编码预览图",
+        "encoding_thumb": "编码缩略图",
+        "encoding_webp": "编码动图 WebP",
+        "error": "失败",
+        "queued": "等待开始",
+        "reading_frames": "读取/缩放帧",
+        "reading_image": "读取静态图",
+        "starting": "初始化",
+        "unknown": "未知"
+      }
+    }
+  },
+  "auth": {
+    "account": "账号",
+    "apiTokenSession": "API Token 会话",
+    "cookieSession": "Cookie 会话",
+    "goLogin": "去登录",
+    "login": "登录",
+    "loginDescription": "使用账号密码登录网页，会话保存在 HttpOnly cookie 中。",
+    "loginSuccess": "登录成功",
+    "logout": "退出",
+    "password": "密码",
+    "remember30Days": "保持登录 30 天",
+    "signedIn": "已登录",
+    "username": "用户名"
+  },
+  "common": {
+    "loading": "请稍候。",
+    "nya": "ニャ"
+  },
+  "language": {
+    "select": "选择语言"
+  },
+  "nav": {
+    "admin": "管理",
+    "files": "所有文件",
+    "home": "首页",
+    "search": "搜索",
+    "upload": "上传"
+  },
+  "theme": {
+    "toDark": "切换到深色",
+    "toLight": "切换到浅色",
+    "toggle": "切换深浅色"
+  }
+}

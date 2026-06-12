@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 99%;
+    --foreground: 240 10% 8%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 42%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 8%;
+
+    --border: 240 6% 90%;
+    --input: 240 6% 90%;
+
+    --primary: 322 84% 56%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 8%;
+
+    --accent: 240 5% 96%;
+    --accent-foreground: 240 10% 8%;
+
+    --destructive: 0 80% 55%;
+    --destructive-foreground: 0 0% 100%;
+
+    --ring: 322 84% 56%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 240 10% 6%;
+    --foreground: 240 5% 96%;
+
+    --muted: 240 6% 12%;
+    --muted-foreground: 240 5% 64%;
+
+    --card: 240 8% 9%;
+    --card-foreground: 240 5% 96%;
+
+    --popover: 240 8% 9%;
+    --popover-foreground: 240 5% 96%;
+
+    --border: 240 6% 16%;
+    --input: 240 6% 16%;
+
+    --primary: 322 84% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 6% 14%;
+    --secondary-foreground: 240 5% 96%;
+
+    --accent: 240 6% 14%;
+    --accent-foreground: 240 5% 96%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --ring: 322 84% 60%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body {
+    @apply bg-background text-foreground;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family:
+      ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Helvetica Neue",
+      "Hiragino Sans", "Hiragino Sans GB", "PingFang SC",
+      "Microsoft YaHei", sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-border;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-muted-foreground/40;
+  }
+}
+
+@layer utilities {
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.6) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    @apply animate-shimmer;
+  }
+
+  .focus-ring {
+    @apply outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  .glass {
+    @apply bg-background/70 backdrop-blur-md supports-[backdrop-filter]:bg-background/60;
+  }
+}

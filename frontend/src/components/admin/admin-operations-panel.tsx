@@ -1,0 +1,123 @@
+"use client";
+
+import { Activity, Gauge, History, ListChecks, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyLine } from "@/components/admin/admin-fields";
+import {
+  TranscodeJobRow,
+  UploadHistoryRow,
+  UploadLogRow,
+} from "@/components/admin/admin-operation-rows";
+import { useI18n } from "@/components/providers/locale-provider";
+import { formatDate } from "@/components/admin/admin-format";
+import type { TranscodeJob, UploadHistoryItem, UploadLogItem } from "@/lib/types";
+
+type AdminPollingMode = "active" | "idle" | "paused";
+
+type AdminOperationsPanelProps = {
+  isAdmin: boolean;
+  busy: string | null;
+  error: string | null;
+  pollingMode: AdminPollingMode;
+  lastUpdatedAt: string | null;
+  transcodeJobs: TranscodeJob[];
+  uploadHistory: UploadHistoryItem[];
+  uploadLogs: UploadLogItem[];
+  onRefresh: () => unknown;
+  onStartTranscode: (assetKey: string) => unknown;
+};
+
+export function AdminOperationsPanel({
+  isAdmin,
+  busy,
+  error,
+  pollingMode,
+  lastUpdatedAt,
+  transcodeJobs,
+  uploadHistory,
+  uploadLogs,
+  onRefresh,
+  onStartTranscode,
+}: AdminOperationsPanelProps) {
+  const { t } = useI18n();
+
+  return (
+    <section className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="flex items-center gap-2 text-sm font-medium">
+            <Activity className="h-4 w-4" /> 上传与转码
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {isAdmin ? "admin 可查看全部用户；非 admin 只会看到自己的上传与转码任务。" : "这里只显示你自己上传的文件和转码任务。"}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-md border border-border bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
+            {pollingMode === "active" && t("admin.ops.pollingActive")}
+            {pollingMode === "idle" && t("admin.ops.pollingIdle")}
+            {pollingMode === "paused" && t("admin.ops.pollingPaused")}
+            {lastUpdatedAt && (
+              <span className="hidden sm:inline">
+                {" · "}
+                {t("admin.ops.lastUpdated", { time: formatDate(lastUpdatedAt) })}
+              </span>
+            )}
+          </span>
+          <Button variant="outline" size="sm" disabled={busy === "ops-refresh"} onClick={onRefresh}>
+            <RefreshCw className="h-4 w-4" /> 刷新
+          </Button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-xs text-destructive">
+          {error}
+        </div>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <div className="space-y-2">
+          <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+            <Gauge className="h-3.5 w-3.5" /> 转码任务
+          </h3>
+          <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+            {transcodeJobs.map((job) => (
+              <TranscodeJobRow key={job.job_id} job={job} />
+            ))}
+            {transcodeJobs.length === 0 && <EmptyLine text="暂无转码任务" />}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+            <History className="h-3.5 w-3.5" /> 上传历史
+          </h3>
+          <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
+            {uploadHistory.map((item) => (
+              <UploadHistoryRow
+                key={item.asset_key}
+                item={item}
+                busy={busy === `transcode-${item.asset_key}`}
+                onStartTranscode={() => onStartTranscode(item.asset_key)}
+              />
+            ))}
+            {uploadHistory.length === 0 && <EmptyLine text="暂无上传历史" />}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
+          <ListChecks className="h-3.5 w-3.5" /> 最近日志
+        </h3>
+        <div className="max-h-72 overflow-auto rounded-lg border border-border">
+          {uploadLogs.map((log) => (
+            <UploadLogRow key={log.id} log={log} />
+          ))}
+          {uploadLogs.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">暂无日志</div>}
+        </div>
+      </div>
+    </section>
+  );
+}

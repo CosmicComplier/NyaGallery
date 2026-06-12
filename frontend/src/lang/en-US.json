@@ -1,0 +1,108 @@
+{
+  "admin": {
+    "ops": {
+      "lastUpdated": "Last refreshed: {time}",
+      "pollingActive": "Auto refresh: transcoding, 2.5s",
+      "pollingIdle": "Auto refresh: idle, 15s",
+      "pollingPaused": "Auto refresh: paused while hidden"
+    },
+    "logs": {
+      "eventStatus": "{event}: {status}",
+      "events": {
+        "transcode": "Transcode",
+        "transcode_request": "Transcode request",
+        "upload": "Upload"
+      },
+      "hidden": "Hidden",
+      "hiddenTitle": "Tagged with hide; excluded from the home page and ordinary searches",
+      "messages": {
+        "media cache generated": "Media cache generated",
+        "media cache generation failed": "Media cache generation failed",
+        "requestedBy": "Requested by {username}",
+        "starting media cache generation": "Starting media cache generation"
+      },
+      "statuses": {
+        "error": "Error",
+        "queued": "Queued",
+        "running": "Running",
+        "success": "Success"
+      }
+    },
+    "cache": {
+      "detailMissing": "Missing {missing}; {fallback}",
+      "fallbackOriginal": "preview uses original fallback",
+      "missingCache": "cache",
+      "preview": "preview",
+      "previewCached": "preview cached",
+      "previewThumbCached": "preview/thumb cached",
+      "statusMissing": "No compressed cache",
+      "statusPartial": "Partial cache",
+      "statusQueued": "Transcode queued",
+      "statusReady": "Cache ready",
+      "thumb": "thumb"
+    },
+    "transcode": {
+      "durationElapsed": "Total elapsed: {value}",
+      "durationStage": "Stage elapsed: {value}",
+      "etaComplete": "Complete",
+      "etaError": "Failed",
+      "etaEstimating": "Estimating",
+      "etaRemaining": "Remaining: {value}",
+      "framesStatic": "Static / pending stats",
+      "latest": "transcode: {status} {progress}%",
+      "stageCurrent": "Current stage: {stage}",
+      "stageDetails": {
+        "encoding_preview": "Encoding the static preview.",
+        "encoding_thumb": "Preview is complete; generating the AVIF thumbnail.",
+        "encoding_webp": "Writing the animated WebP preview. This encoder saves in one pass, so progress jumps to the thumbnail stage after it finishes.",
+        "reading_frames": "Reading, transposing, and resizing frames; fps is the current preprocessing speed.",
+        "waiting": "Waiting for the next progress update."
+      },
+      "stages": {
+        "done": "Done",
+        "encoding_preview": "Encoding preview",
+        "encoding_thumb": "Encoding thumbnail",
+        "encoding_webp": "Encoding animated WebP",
+        "error": "Error",
+        "queued": "Queued",
+        "reading_frames": "Reading/resizing frames",
+        "reading_image": "Reading static image",
+        "starting": "Starting",
+        "unknown": "Unknown"
+      }
+    }
+  },
+  "auth": {
+    "account": "Account",
+    "apiTokenSession": "API token session",
+    "cookieSession": "Cookie session",
+    "goLogin": "Sign in",
+    "login": "Sign in",
+    "loginDescription": "Sign in with your username and password. The web session is stored in an HttpOnly cookie.",
+    "loginSuccess": "Signed in",
+    "logout": "Sign out",
+    "password": "Password",
+    "remember30Days": "Keep me signed in for 30 days",
+    "signedIn": "Signed in",
+    "username": "Username"
+  },
+  "common": {
+    "loading": "Please wait.",
+    "nya": "Nya"
+  },
+  "language": {
+    "select": "Choose language"
+  },
+  "nav": {
+    "admin": "Admin",
+    "files": "Files",
+    "home": "Home",
+    "search": "Search",
+    "upload": "Upload"
+  },
+  "theme": {
+    "toDark": "Switch to dark mode",
+    "toLight": "Switch to light mode",
+    "toggle": "Toggle color theme"
+  }
+}
