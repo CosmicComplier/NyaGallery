@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { ImageOff } from "lucide-react";
-import { useSearchAssets } from "@/lib/hooks";
-import { useIntersection } from "@/lib/hooks";
-import { Spinner } from "@/components/ui/spinner";
+import { useI18n } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { useIntersection, useSearchAssets } from "@/lib/hooks";
 import { MasonryGrid } from "./masonry-grid";
 import { AssetCardSkeleton } from "./asset-card";
 import type { Asset, SearchOrder, SearchSort } from "@/lib/types";
@@ -32,6 +32,7 @@ export function InfiniteGallery({
   onTagClick?: (tag: string) => void;
   collapseWorks?: boolean;
 }) {
+  const { t } = useI18n();
   const sentinelRef = useRef<HTMLDivElement>(null);
   const intersecting = useIntersection(sentinelRef, { rootMargin: "1200px 0px" });
   const searchQueries = queries && queries.length > 0 ? queries : [query];
@@ -95,7 +96,7 @@ export function InfiniteGallery({
         <ImageOff className="h-8 w-8 text-destructive" />
         <p className="text-sm text-destructive">{error.message}</p>
         <Button variant="outline" size="sm" onClick={() => refetch()}>
-          重试
+          {t("common.retry")}
         </Button>
       </div>
     );
@@ -105,10 +106,8 @@ export function InfiniteGallery({
     return (
       <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border p-12 text-center">
         <ImageOff className="h-8 w-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">没有匹配的图片</p>
-        <p className="text-xs text-muted-foreground/80">
-          尝试不同的标签，或先同步几张作品
-        </p>
+        <p className="text-sm text-muted-foreground">{t("gallery.emptyTitle")}</p>
+        <p className="text-xs text-muted-foreground/80">{t("gallery.emptyDescription")}</p>
       </div>
     );
   }
@@ -124,7 +123,7 @@ export function InfiniteGallery({
       <div ref={sentinelRef} className="flex h-16 items-center justify-center">
         {isFetchingNextPage && <Spinner />}
         {!hasNextPage && (
-          <span className="text-xs text-muted-foreground">已经到底了</span>
+          <span className="text-xs text-muted-foreground">{t("gallery.end")}</span>
         )}
       </div>
     </div>

@@ -5,6 +5,7 @@ import { Cloud, Plus, RefreshCw, Save, ShieldAlert, ShieldCheck, Trash2, Wand2 }
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useI18n } from "@/components/providers/locale-provider";
 import type { BackendConfig, DeveloperConfigResponse, StorageStrategyConfig } from "@/lib/types";
 
 type AdminMaintenancePanelProps = {
@@ -36,6 +37,7 @@ export function AdminMaintenancePanel({
   onRebuildWithCache,
   onGenerateMedia,
 }: AdminMaintenancePanelProps) {
+  const { t } = useI18n();
   const originalStorage = configDraft?.original_storage ?? { default_strategy: "local", strategies: [] };
   const strategies = originalStorage.strategies ?? [];
   const defaultOptions = ["local", ...strategies.map((strategy) => strategy.name).filter(Boolean)];
@@ -83,18 +85,18 @@ export function AdminMaintenancePanel({
     <>
       <section className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-sm font-medium">
-          <RefreshCw className="h-4 w-4" /> 数据库重建
+          <RefreshCw className="h-4 w-4" /> {t("admin.maintenance.rebuildTitle")}
         </h2>
-        <p className="text-xs text-muted-foreground">从 metadata JSON 重建索引，可选同时重新生成预览缓存。</p>
+        <p className="text-xs text-muted-foreground">{t("admin.maintenance.rebuildDescription")}</p>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={busy === "rebuild"} onClick={onRebuild}>
-            重建索引
+            {t("admin.maintenance.rebuild")}
           </Button>
           <Button variant="outline" size="sm" disabled={busy === "rebuild-cache"} onClick={onRebuildWithCache}>
-            重建索引 + 缓存
+            {t("admin.maintenance.rebuildCache")}
           </Button>
           <Button variant="outline" size="sm" disabled={busy === "media"} onClick={onGenerateMedia}>
-            <Wand2 className="h-4 w-4" /> 生成全部缓存
+            <Wand2 className="h-4 w-4" /> {t("admin.maintenance.generateMedia")}
           </Button>
         </div>
         {rebuildResult && <pre className="max-h-64 overflow-auto rounded-md bg-muted p-3 text-xs">{rebuildResult}</pre>}
@@ -104,21 +106,21 @@ export function AdminMaintenancePanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-medium">
-              <Cloud className="h-4 w-4" /> 云储存
+              <Cloud className="h-4 w-4" /> {t("admin.maintenance.cloudTitle")}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {isDeveloper
-                ? configResponse ? `${configResponse.path}${configResponse.exists ? "" : " · 将新建"}` : "配置写入 nyagallery.toml，保存后重启后端完整生效。"
-                : "云储存配置只对 developer 权限组开放。"}
+                ? configResponse ? `${configResponse.path}${configResponse.exists ? "" : t("admin.maintenance.willCreateSuffix")}` : t("admin.maintenance.cloudDescription")
+                : t("admin.maintenance.developerOnly")}
             </p>
           </div>
           {isDeveloper && (
             <div className="flex gap-2">
               <Button variant="outline" size="sm" disabled={busy === "developer-config-refresh"} onClick={onRefreshConfig}>
-                刷新
+                {t("common.refresh")}
               </Button>
               <Button size="sm" disabled={!configDraft || busy === "developer-config-save"} onClick={onSaveConfig}>
-                <Save className="h-4 w-4" /> 保存云储存
+                <Save className="h-4 w-4" /> {t("admin.maintenance.saveCloud")}
               </Button>
             </div>
           )}
@@ -126,7 +128,7 @@ export function AdminMaintenancePanel({
 
         {!isDeveloper && (
           <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-            当前账号可以执行维护任务，但不能修改云储存策略。请使用 developer 账号进入本页。
+            {t("admin.maintenance.developerOnlyHint")}
           </div>
         )}
 
@@ -140,14 +142,14 @@ export function AdminMaintenancePanel({
               )}
               <span>
                 {configDraft.security?.secret_encryption_enabled
-                  ? "已启用部署密钥：云储存 password/token/access_key_secret 会加密写入 TOML，界面只做脱敏编辑。"
-                  : "未启用部署密钥：云储存 password/token/access_key_secret 只会脱敏展示，写入 TOML 时不是加密保存。保存配置会自动生成 security.secret_key。"}
+                  ? t("admin.maintenance.encryptionEnabled")
+                  : t("admin.maintenance.encryptionDisabled")}
               </span>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
               <div className="space-y-1.5">
-                <Label>默认储存策略</Label>
+                <Label>{t("admin.maintenance.defaultStrategy")}</Label>
                 <select
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-ring"
                   value={originalStorage.default_strategy}
@@ -171,7 +173,7 @@ export function AdminMaintenancePanel({
             <div className="space-y-4">
               {strategies.length === 0 && (
                 <div className="rounded-md border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  还没有云储存策略，当前只会使用 local。
+                  {t("admin.maintenance.emptyStrategies")}
                 </div>
               )}
               {strategies.map((strategy, index) => (
@@ -199,12 +201,14 @@ function StrategyEditor({
   onChange: (patch: Partial<StorageStrategyConfig>) => void;
   onRemove: () => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-3 rounded-md border border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium">{strategy.name || "unnamed"} · {strategy.type}</div>
+        <div className="text-sm font-medium">{strategy.name || t("admin.maintenance.unnamed")} · {strategy.type}</div>
         <Button type="button" variant="ghost" size="sm" onClick={onRemove}>
-          <Trash2 className="h-4 w-4" /> 删除
+          <Trash2 className="h-4 w-4" /> {t("pages.asset.delete")}
         </Button>
       </div>
 

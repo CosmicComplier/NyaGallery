@@ -402,7 +402,7 @@ export async function downloadOriginalAsset(asset: Asset): Promise<void> {
     return;
   }
   if (!token) {
-    throw new ApiError(401, "下载原图需要先登录");
+    throw new ApiError(401, "Sign in required to download originals");
   }
 
   const res = await fetch(fileUrl.original(asset.asset_key), {

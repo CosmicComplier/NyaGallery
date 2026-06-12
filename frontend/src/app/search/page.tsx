@@ -4,16 +4,16 @@ import { useCallback, useMemo } from "react";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, Shuffle, X } from "lucide-react";
 import { ContentFilterToggles } from "@/components/content/content-filter-toggles";
+import { useI18n } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
-import { useRandomPreview } from "@/hooks/search/use-random-preview";
-import { useSearchTags } from "@/hooks/search/use-search-tags";
-import { categoryColor, tagCategory, tagLabel, cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 import { TagChipInput } from "@/components/ui/tag-chip-input";
-import { useI18n } from "@/components/providers/locale-provider";
+import { useRandomPreview } from "@/hooks/search/use-random-preview";
+import { useSearchTags } from "@/hooks/search/use-search-tags";
+import { categoryColor, cn, tagCategory, tagLabel } from "@/lib/utils";
 
 export default function SearchPage() {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const {
     selected,
     setSelected,
@@ -57,65 +57,61 @@ export default function SearchPage() {
   return (
     <div className="container max-w-5xl py-8">
       <div className="mb-6 space-y-2">
-        <h1 className="text-2xl font-semibold">搜索</h1>
-        <p className="text-sm text-muted-foreground">
-          输入标签后搜索或随机，点击下方标签可快速添加。
-        </p>
+        <h1 className="text-2xl font-semibold">{t("pages.search.title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("pages.search.description")}</p>
       </div>
 
-      {/* Tag input + action buttons */}
       <div className="flex items-stretch gap-2">
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <TagChipInput
             tags={selected}
             onChange={setSelected}
             getLabel={labelForTag}
-            placeholder="输入标签后回车添加"
+            placeholder={t("pages.search.inputPlaceholder")}
           />
         </div>
-        <div className="flex flex-col gap-1.5 shrink-0">
-          <Button onClick={submit} className="gap-1 h-9">
+        <div className="flex shrink-0 flex-col gap-1.5">
+          <Button onClick={submit} className="h-9 gap-1">
             <ArrowRight className="h-4 w-4" />
-            搜索
+            {t("pages.search.title")}
           </Button>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
               onClick={handleRandom}
-              className="gap-1 h-7 text-muted-foreground"
+              className="h-7 gap-1 text-muted-foreground"
             >
               <Shuffle className="h-3.5 w-3.5" />
-              随机
+              {t("pages.search.random")}
             </Button>
             <ContentFilterToggles />
-            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground select-none cursor-pointer">
+            <label className="flex cursor-pointer select-none items-center gap-1.5 text-[11px] text-muted-foreground">
               <input
                 type="checkbox"
                 checked={excludeAnimated}
                 onChange={(e) => setExcludeAnimated(e.target.checked)}
                 className="h-3 w-3 rounded border-border accent-[hsl(var(--primary))]"
               />
-              排除动图
+              {t("pages.search.excludeAnimated")}
             </label>
           </div>
         </div>
       </div>
 
-      {/* Random image preview */}
       {showRandom && (
-        <div className="relative mt-6 mx-auto max-w-3xl overflow-hidden rounded-xl border border-border bg-card">
+        <div className="relative mx-auto mt-6 max-w-3xl overflow-hidden rounded-xl border border-border bg-card">
           <button
             type="button"
             onClick={() => setShowRandom(false)}
             className="absolute right-2 top-2 z-10 rounded-full bg-background/80 p-1 text-muted-foreground hover:text-foreground"
-            aria-label="关闭"
+            aria-label={t("common.close")}
           >
             <X className="h-4 w-4" />
           </button>
           {randomError ? (
             <div className="grid place-items-center p-16 text-center text-sm text-muted-foreground">
-              没有匹配的图片，换个标签再试
+              {t("pages.search.emptyRandom")}
             </div>
           ) : (
             <>
@@ -142,12 +138,12 @@ export default function SearchPage() {
           )}
           <div className="flex items-center justify-center border-t border-border p-2">
             <Button variant="ghost" size="sm" onClick={handleRandom} className="gap-1">
-              <Shuffle className="h-3.5 w-3.5" /> 再来一张
+              <Shuffle className="h-3.5 w-3.5" /> {t("pages.search.again")}
             </Button>
             {randomAssetKey && (
               <Button variant="ghost" size="sm" asChild className="gap-1">
                 <Link href={`/asset/${encodeURIComponent(randomAssetKey)}`}>
-                  查看详情
+                  {t("pages.search.showDetails")}
                 </Link>
               </Button>
             )}
@@ -155,17 +151,16 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Selector dropdowns for rating / meta */}
       {selectorGroups.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2">
           {selectorGroups.map(([category, tags]) => {
             const open = openSelectors[category] ?? false;
-            const picked = tags.filter((t) => selectedSet.has(t.name));
+            const picked = tags.filter((item) => selectedSet.has(item.name));
             return (
               <div key={category} className="relative">
                 <button
                   type="button"
-                  onClick={() => setOpenSelectors((s) => ({ ...s, [category]: !s[category] }))}
+                  onClick={() => setOpenSelectors((state) => ({ ...state, [category]: !state[category] }))}
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                     picked.length > 0
@@ -174,7 +169,7 @@ export default function SearchPage() {
                   )}
                 >
                   <span className="opacity-70">{category}:</span>
-                  {picked.length > 0 ? picked.map((t) => tagLabel(t.name, t.labels, locale)).join(", ") : "全部"}
+                  {picked.length > 0 ? picked.map((item) => tagLabel(item.name, item.labels, locale)).join(", ") : t("common.all")}
                   <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
                 </button>
                 {open && (
@@ -212,19 +207,16 @@ export default function SearchPage() {
         </div>
       )}
 
-      {/* Tag catalog — checkboxes grouped by category */}
       <div className="mt-6 space-y-6">
         {isFetching && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner /> 加载中…
+            <Spinner /> {t("common.loading")}
           </div>
         )}
-        {error && (
-          <div className="text-sm text-destructive">{error.message}</div>
-        )}
+        {error && <div className="text-sm text-destructive">{error.message}</div>}
         {!isFetching && catalogGroups.length === 0 && (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-            没有标签
+            {t("pages.search.tagsEmpty")}
           </div>
         )}
         {catalogGroups.map(([category, tags]) => (
@@ -241,7 +233,7 @@ export default function SearchPage() {
                     className={cn(
                       "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-all hover:opacity-80",
                       categoryColor(tag.category),
-                      checked && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.02]"
+                      checked && "scale-[1.02] ring-2 ring-primary ring-offset-1 ring-offset-background"
                     )}
                     title={tag.aliases.length > 0 ? tag.aliases.join(" / ") : undefined}
                   >
@@ -253,9 +245,7 @@ export default function SearchPage() {
                     />
                     <span className="opacity-70">{tagCategory(tag.name)}:</span>{" "}
                     <span className="font-medium">{tagLabel(tag.name, tag.labels, locale)}</span>
-                    {tag.count > 0 && (
-                      <span className="opacity-50">{tag.count}</span>
-                    )}
+                    {tag.count > 0 && <span className="opacity-50">{tag.count}</span>}
                   </label>
                 );
               })}
@@ -263,16 +253,15 @@ export default function SearchPage() {
           </section>
         ))}
 
-        {/* Technical tags — collapsed by default */}
         {technicalCount > 0 && (
           <section>
             <button
               type="button"
-              onClick={() => setShowTechnical((v) => !v)}
-              className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setShowTechnical((value) => !value)}
+              className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               <ChevronDown className={cn("h-4 w-4 transition-transform", showTechnical && "rotate-180")} />
-              技术标签
+              {t("pages.search.technicalTags")}
               <span className="text-xs opacity-60">({technicalCount})</span>
             </button>
             {showTechnical && (
@@ -289,8 +278,8 @@ export default function SearchPage() {
                           <label
                             key={tag.name}
                             className={cn(
-                              "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] transition-all hover:opacity-80 opacity-70",
-                              checked && "opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background scale-[1.02]"
+                              "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] opacity-70 transition-all hover:opacity-80",
+                              checked && "scale-[1.02] opacity-100 ring-2 ring-primary ring-offset-1 ring-offset-background"
                             )}
                           >
                             <input

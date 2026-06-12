@@ -35,38 +35,19 @@ export function terminalStatus(job: TranscodeJob): string {
   return status;
 }
 
-export function localizedPixivMessage(message: string): string {
-  if (message === "pixiv sync completed") return "抓取完成";
-  if (message === "pixiv sync queued") return "已加入后台抓取";
-  if (message === "fetching pixiv metadata") return "正在获取作品信息";
-  if (message === "pixiv metadata fetched") return "已获取作品信息";
-  if (message === "fetching pixiv user artworks") return "正在读取用户作品";
-  if (message === "pixiv artwork queued") return "准备抓取当前作品";
-  if (message === "pixiv artwork started") return "开始抓取作品";
-  if (message === "downloading pixiv page") return "正在下载页面";
-  if (message === "pixiv page completed") return "页面下载完成";
-  if (message === "pixiv page skipped") return "页面已存在，跳过";
-  if (message === "pixiv artwork completed") return "作品抓取完成";
-  if (message === "pixiv rate limited") return "Pixiv 触发限流";
-  if (message === "dry run completed") return "预检完成";
+export function localizedPixivMessage(message: string, t: AdminTranslate): string {
+  const key = `admin.pixivMessages.${message}`;
+  const label = t(key);
+  if (label !== key) return label;
   return message || "-";
 }
 
-export function pixivStageLabel(stage: string | null): string {
-  if (stage === "queued") return "等待开始";
-  if (stage === "fetching_metadata") return "获取作品信息";
-  if (stage === "metadata_fetched") return "作品信息已获取";
-  if (stage === "fetching_user_artworks") return "读取用户作品";
-  if (stage === "artwork_queued") return "准备当前作品";
-  if (stage === "artwork_started") return "抓取作品";
-  if (stage === "downloading_page") return "下载页面";
-  if (stage === "page_done") return "页面完成";
-  if (stage === "page_skipped") return "页面跳过";
-  if (stage === "artwork_done") return "作品完成";
-  if (stage === "rate_limited") return "Pixiv 限流";
-  if (stage === "done") return "完成";
-  if (stage === "error") return "错误";
-  return stage || "等待更新";
+export function pixivStageLabel(stage: string | null, t: AdminTranslate): string {
+  const value = stage || "waiting";
+  const key = `admin.pixivStages.${value}`;
+  const label = t(key);
+  if (label !== key) return label;
+  return stage || t("admin.pixivStages.waiting");
 }
 
 export function extraString(extra: Record<string, unknown>, key: string): string | null {

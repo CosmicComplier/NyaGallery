@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { X } from "lucide-react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
 interface DialogProps {
@@ -14,6 +15,8 @@ interface DialogProps {
 }
 
 export function Dialog({ open, onClose, title, description, className, children }: DialogProps) {
+  const { t } = useI18n();
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
@@ -43,7 +46,7 @@ export function Dialog({ open, onClose, title, description, className, children 
       >
         <button
           type="button"
-          aria-label="关闭"
+          aria-label={t("common.close")}
           onClick={onClose}
           className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground transition-colors hover:bg-accent"
         >

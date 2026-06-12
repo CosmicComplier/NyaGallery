@@ -67,7 +67,7 @@ export function TranscodeJobRow({ job }: { job: TranscodeJob }) {
       <div className="grid gap-1 text-muted-foreground sm:grid-cols-2">
         <span>{stageLabel(job.stage || job.message, t)} · {progress.toFixed(1)}%</span>
         <span className="sm:text-right">
-          {job.frames_total ? `${job.frames_done ?? 0}/${job.frames_total} 帧` : t("admin.transcode.framesStatic")}
+          {job.frames_total ? t("admin.transcode.framesDone", { done: job.frames_done ?? 0, total: job.frames_total }) : t("admin.transcode.framesStatic")}
           {job.frames_per_second ? ` · ${job.frames_per_second.toFixed(2)} fps` : ""}
         </span>
         <span>{job.uploader_username || "unknown"} · {formatBytes(job.file_size)}</span>
@@ -117,8 +117,8 @@ export function UploadHistoryRow({ item, busy, onStartTranscode }: { item: Uploa
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
         <span>{item.uploader_username || "unknown"}</span>
         <span>{formatDate(item.uploaded_at)}</span>
-        <span>{item.width && item.height ? `${item.width}x${item.height}` : "size unknown"}</span>
-        {item.is_animated && <span>animated</span>}
+        <span>{item.width && item.height ? `${item.width}x${item.height}` : t("admin.ops.sizeUnknown")}</span>
+        {item.is_animated && <span>{t("admin.ops.animated")}</span>}
         <span>{cacheDetail(item, t)}</span>
         {item.latest_transcode_job && (
           <span className={statusClass(terminalStatus(item.latest_transcode_job))}>
@@ -132,7 +132,7 @@ export function UploadHistoryRow({ item, busy, onStartTranscode }: { item: Uploa
       {canStart && (
         <div className="mt-2">
           <Button type="button" size="sm" variant="outline" disabled={busy} onClick={onStartTranscode} className="h-7">
-            <Wand2 className="h-3.5 w-3.5" /> 开始转码
+            <Wand2 className="h-3.5 w-3.5" /> {t("admin.ops.startTranscode")}
           </Button>
         </div>
       )}
@@ -224,7 +224,7 @@ export function PixivLogRow({ log }: { log: UploadLogItem }) {
       {progressValue !== null && (
         <div className="mt-2 space-y-1">
           <div className="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-            <span className="truncate">{pixivStageLabel(stage)}</span>
+            <span className="truncate">{pixivStageLabel(stage, t)}</span>
             <span>{progressValue.toFixed(0)}%</span>
           </div>
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -233,15 +233,15 @@ export function PixivLogRow({ log }: { log: UploadLogItem }) {
         </div>
       )}
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-        {syncCount !== null && <span>文件 {syncCount}</span>}
-        {pageNumber !== null && pageCount !== null && <span>页 {pageNumber}/{pageCount}</span>}
-        {currentArtworkIndex !== null && <span>作品 #{currentArtworkIndex}</span>}
-        {artworksDone !== null && <span>已完成作品 {artworksDone}</span>}
-        {queued !== null && <span>转码 {queued}</span>}
-        {retryAfter !== null && <span className="text-amber-600 dark:text-amber-400">429 等待 {retryAfter}s</span>}
+        {syncCount !== null && <span>{t("admin.pixivStats.files", { count: syncCount })}</span>}
+        {pageNumber !== null && pageCount !== null && <span>{t("admin.pixivStats.page", { page: pageNumber, total: pageCount })}</span>}
+        {currentArtworkIndex !== null && <span>{t("admin.pixivStats.artwork", { index: currentArtworkIndex })}</span>}
+        {artworksDone !== null && <span>{t("admin.pixivStats.artworksDone", { count: artworksDone })}</span>}
+        {queued !== null && <span>{t("admin.pixivStats.transcode", { count: queued })}</span>}
+        {retryAfter !== null && <span className="text-amber-600 dark:text-amber-400">{t("admin.pixivStats.rateLimited", { seconds: retryAfter })}</span>}
         {title && <span className="max-w-full truncate" title={title}>{title}</span>}
         {assetKey && <span className="font-mono">{assetKey}</span>}
-        <span>{localizedPixivMessage(log.message)}</span>
+        <span>{localizedPixivMessage(log.message, t)}</span>
       </div>
       {error && <div className="mt-2 break-words text-destructive">{error}</div>}
     </div>
@@ -276,8 +276,10 @@ export function TokenList({
   busy: string | null;
   onRevoke: (tokenId: number) => void;
 }) {
+  const { t } = useI18n();
+
   if (tokens.length === 0) {
-    return <EmptyLine text="暂无 API Token" />;
+    return <EmptyLine text={t("admin.tokens.empty")} />;
   }
 
   return (
@@ -286,17 +288,17 @@ export function TokenList({
         <div key={item.id} className="grid gap-2 border-b border-border p-3 last:border-b-0 sm:grid-cols-[1fr_140px_150px_120px_auto] sm:items-center">
           <div className="min-w-0">
             <div className="truncate font-mono">{item.token_prefix}...</div>
-            <div className="truncate text-muted-foreground">{item.label || "no label"}</div>
+            <div className="truncate text-muted-foreground">{item.label || t("admin.tokens.noLabel")}</div>
           </div>
           <div className="text-muted-foreground">{formatDate(item.created_at)}</div>
           <div className="min-w-0 text-muted-foreground">
             <div>{formatDate(item.last_used_at)}</div>
             <div className="truncate font-mono" title={item.last_used_ip || ""}>
-              {item.last_used_ip || "no ip"}
+              {item.last_used_ip || t("admin.tokens.noIp")}
             </div>
           </div>
           <div className={item.is_active ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}>
-            {item.is_active ? "active" : "revoked"}
+            {item.is_active ? t("admin.tokens.active") : t("admin.tokens.revoked")}
           </div>
           <Button
             size="sm"
@@ -304,7 +306,7 @@ export function TokenList({
             disabled={!item.is_active || busy === `token-revoke-${item.id}`}
             onClick={() => onRevoke(item.id)}
           >
-            撤销
+            {t("admin.tokens.revoke")}
           </Button>
         </div>
       ))}

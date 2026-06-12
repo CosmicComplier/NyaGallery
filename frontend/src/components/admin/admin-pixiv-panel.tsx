@@ -9,6 +9,7 @@ import { EmptyLine, NumberField, TextAreaField, ToggleField } from "@/components
 import { PixivLogRow } from "@/components/admin/admin-operation-rows";
 import { formatDate } from "@/components/admin/admin-format";
 import { PixivCookieManager, PixivTokenManager } from "@/components/admin/pixiv-credential-managers";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import type { PixivAuthMode, PixivConfigResponse, PixivCookieSummary, PixivTokenSummary, UploadLogItem } from "@/lib/types";
 
@@ -199,6 +200,7 @@ export function AdminPixivPanel({
   pixivLastUpdatedAt,
   onRefreshPixivLogs,
 }: AdminPixivPanelProps) {
+  const { t } = useI18n();
   const canSaveToken = Boolean(pixivRefreshToken.trim() && username);
   const canSaveCookie = Boolean(pixivCookie.trim() && username);
 
@@ -207,10 +209,10 @@ export function AdminPixivPanel({
       <section className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-medium">
-            <Globe2 className="h-4 w-4" /> Pixiv 配置
+            <Globe2 className="h-4 w-4" /> {t("admin.pixiv.title")}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {pixivConfig?.has_env_refresh_token ? "已检测到环境变量 PIXIV_REFRESH_TOKEN；公开作品仍建议免登录抓取。" : "公开作品可免登录抓取；Token/Cookie 仅用于账号相关来源。"}
+            {pixivConfig?.has_env_refresh_token ? t("admin.pixiv.envTokenDetected") : t("admin.pixiv.publicHint")}
           </p>
         </div>
 
@@ -222,19 +224,19 @@ export function AdminPixivPanel({
           )}
           <span>
             {pixivConfig?.secret_encryption_enabled
-              ? "已启用部署密钥：保存的 Pixiv Token/Cookie 会加密落盘，界面只显示脱敏摘要。"
-              : "未启用部署密钥：Pixiv Token/Cookie 只会脱敏展示，落盘仍不是加密保存。请先在部署配置中生成 security.secret_key。"}
+              ? t("admin.pixiv.encryptionEnabled")
+              : t("admin.pixiv.encryptionDisabled")}
           </span>
         </div>
 
         <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/40 p-1">
           {[
-            ["public", "公开"],
+            ["public", t("admin.pixiv.auth.public")],
             ...(isAdmin ? [["oauth_local", "OAuth"]] : []),
             ["refresh_token", "Token"],
             ["cookie", "Cookie"],
-            ...(isAdmin ? [["oauth_manual", "手动"]] : []),
-            ["local_import", "本地"],
+            ...(isAdmin ? [["oauth_manual", t("admin.pixiv.auth.manual")]] : []),
+            ["local_import", t("admin.pixiv.auth.local")],
           ].map(([mode, label]) => (
             <button
               key={mode}
@@ -249,43 +251,43 @@ export function AdminPixivPanel({
 
         {pixivAuthMode === "public" ? (
           <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-            <div className="font-medium text-foreground">公开抓取：不使用 Pixiv 登录态。</div>
+            <div className="font-medium text-foreground">{t("admin.pixiv.publicModeTitle")}</div>
             <div className="mt-1">
-              适合单作品和公开用户作品，包含公开可访问的 R-18/R-18G 信息。收藏夹、关注、私有上下文仍需要 OAuth 或 Cookie。
+              {t("admin.pixiv.publicModeDescription")}
             </div>
             <div className="mt-1">
-              公开模式通常比登录态更不容易触发 429；仍建议保留适度请求间隔，避免压 Pixiv。
+              {t("admin.pixiv.publicModeRateHint")}
             </div>
           </div>
         ) : pixivAuthMode === "oauth_local" ? (
           <div className="space-y-3 rounded-md border border-border bg-muted/25 p-3">
             <div className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-              <div className="font-medium text-foreground">主 OAuth 流程：启动可见 Pixiv 登录浏览器。</div>
+              <div className="font-medium text-foreground">{t("admin.pixiv.visibleOauthTitle")}</div>
               <div className="mt-1">
-                需要服务器安装 <span className="font-mono">pixiv-login</span> 依赖。浏览器窗口会出现在运行后端的机器上；本地自部署可以直接完成验证码、Passkey 或 2FA。
+                {t("admin.pixiv.visibleOauthRequirement")}
               </div>
               <div className="mt-1">
-                Pixiv ID/密码可留空，直接在弹出的 Pixiv 页面登录。公共服务器没有桌面环境时，请用可见浏览器命令或手动粘贴 Token。
+                {t("admin.pixiv.visibleOauthPasswordHint")}
               </div>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
               <div className="space-y-1.5">
-                <Label htmlFor="pixiv_login_username">Pixiv ID / 邮箱</Label>
+                <Label htmlFor="pixiv_login_username">{t("admin.pixiv.pixivId")}</Label>
                 <Input
                   id="pixiv_login_username"
                   value={pixivLoginDraft.username}
                   onChange={(e) => onPixivLoginDraftChange((draft) => ({ ...draft, username: e.target.value }))}
-                  placeholder="Pixiv ID 或邮箱"
+                  placeholder={t("admin.pixiv.pixivIdPlaceholder")}
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="pixiv_login_password">Pixiv 密码</Label>
+                <Label htmlFor="pixiv_login_password">{t("admin.pixiv.pixivPassword")}</Label>
                 <Input
                   id="pixiv_login_password"
                   type="password"
                   value={pixivLoginDraft.password}
                   onChange={(e) => onPixivLoginDraftChange((draft) => ({ ...draft, password: e.target.value }))}
-                  placeholder="仅用于本次 OAuth 登录"
+                  placeholder={t("admin.pixiv.pixivPasswordPlaceholder")}
                 />
               </div>
             </div>
@@ -296,11 +298,11 @@ export function AdminPixivPanel({
               onClick={onStartVisiblePixivLogin}
               title={pixivVisibleLoginDisabledReason || undefined}
             >
-              <ExternalLink className="h-4 w-4" /> 启动可见 Pixiv 登录
+              <ExternalLink className="h-4 w-4" /> {t("admin.pixiv.startVisibleLogin")}
             </Button>
             {pixivVisibleSession && (
               <div className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-                会话状态：<span className="font-mono text-foreground">{pixivVisibleSession.status}</span>
+                {t("admin.pixiv.sessionStatus")}<span className="font-mono text-foreground">{pixivVisibleSession.status}</span>
                 {pixivVisibleSession.message ? <span> · {pixivVisibleSession.message}</span> : null}
                 {pixivVisibleSession.error ? <div className="text-destructive">{pixivVisibleSession.error}</div> : null}
               </div>
@@ -313,20 +315,20 @@ export function AdminPixivPanel({
               onClick={onLoginPixivInBrowser}
               title={pixivBrowserLoginDisabledReason || undefined}
             >
-              <KeyRound className="h-4 w-4" /> {busy === "pixiv-oauth-browser-login" ? "正在无头获取 Token" : "无头快速获取 Token"}
+              <KeyRound className="h-4 w-4" /> {busy === "pixiv-oauth-browser-login" ? t("admin.pixiv.headlessTokenBusy") : t("admin.pixiv.headlessToken")}
             </Button>
             {pixivBrowserLoginDisabledReason && busy !== "pixiv-oauth-browser-login" && (
               <div className="text-[11px] text-muted-foreground">{pixivBrowserLoginDisabledReason}</div>
             )}
             {pixivConfig?.supports_browser_oauth_login === false && (
               <div className="rounded-md border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-                当前后端未安装 pixiv-login。请在后端环境运行 <span className="font-mono">python -m pip install -e &quot;.[pixiv-login]&quot;</span> 后重启。
+                {t("admin.pixiv.pixivLoginMissing")}
               </div>
             )}
             <div className="rounded-md border border-border/70 bg-background/50 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-              不想在网页输入 Pixiv 密码时，也可以在服务器或本机运行：
+              {t("admin.pixiv.cliLoginHint")}
               <div className="mt-1 font-mono text-[10px] text-foreground">nyagallery --storage storage pixiv-login-browser --plain</div>
-              Token 以短横线开头也可以直接粘贴；命令行同步参数请用 <span className="font-mono">--refresh-token=...</span> 或环境变量。
+              {t("admin.pixiv.cliTokenHint")}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="pixiv_oauth_local_token">OAuth Refresh Token</Label>
@@ -335,7 +337,7 @@ export function AdminPixivPanel({
                 type="password"
                 value={pixivRefreshToken}
                 onChange={(e) => onPixivRefreshTokenChange(e.target.value)}
-                placeholder={pixivConfig?.has_env_refresh_token ? "留空使用后端环境变量" : "粘贴 pixiv-login-browser 输出的 refresh token"}
+                placeholder={pixivConfig?.has_env_refresh_token ? t("admin.pixiv.useEnvPlaceholder") : t("admin.pixiv.pasteBrowserTokenPlaceholder")}
               />
             </div>
             <PixivTokenControls
@@ -356,11 +358,11 @@ export function AdminPixivPanel({
         ) : pixivAuthMode === "oauth_manual" ? (
           <div className="space-y-3 rounded-md border border-border bg-muted/25 p-3">
             <div className="rounded-md border border-amber-500/25 bg-amber-500/5 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
-              手动 callback/code 换 token 仅作为备用方案。Pixiv 网页跳转可能卡在 post-redirect 或跳到第三方 callback；稳定使用请回到 OAuth 标签运行本地浏览器登录助手。
+              {t("admin.pixiv.manualOauthHint")}
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
               <Button type="button" variant="outline" disabled={busy === "pixiv-oauth-start"} onClick={onStartPixivOAuth}>
-                <ExternalLink className="h-4 w-4" /> 打开 Pixiv 登录
+                <ExternalLink className="h-4 w-4" /> {t("admin.pixiv.openPixivLogin")}
               </Button>
               <Button
                 type="button"
@@ -375,11 +377,11 @@ export function AdminPixivPanel({
                 }
                 onClick={onExchangePixivOAuth}
               >
-                <KeyRound className="h-4 w-4" /> 换取 Token
+                <KeyRound className="h-4 w-4" /> {t("admin.pixiv.exchangeToken")}
               </Button>
             </div>
             <TextAreaField
-              label="回调 URL / code / post-redirect"
+              label={t("admin.pixiv.callbackLabel")}
               value={pixivOAuthCallback}
               rows={3}
               onChange={onPixivOAuthCallbackChange}
@@ -394,18 +396,18 @@ export function AdminPixivPanel({
                   variant="outline"
                   onClick={() => window.open(pixivOAuthOpenInputUrl, "_blank", "noopener,noreferrer")}
                 >
-                  <ExternalLink className="h-4 w-4" /> 继续 Pixiv 跳转
+                  <ExternalLink className="h-4 w-4" /> {t("admin.pixiv.continuePixivRedirect")}
                 </Button>
                 {pixivOAuthStartUrl && (
                   <Button type="button" variant="outline" onClick={() => onCopyPixivStartUrl(pixivOAuthStartUrl)}>
-                    <Copy className="h-4 w-4" /> 复制 start URL
+                    <Copy className="h-4 w-4" /> {t("admin.pixiv.copyStartUrl")}
                   </Button>
                 )}
               </div>
             )}
             {pixivOAuthUrl && (
               <div className="space-y-1 rounded-md border border-border/70 bg-background/50 p-2">
-                <div className="text-[11px] text-muted-foreground">备用登录入口，不是 callback。</div>
+                <div className="text-[11px] text-muted-foreground">{t("admin.pixiv.backupLoginHint")}</div>
                 <a
                   href={pixivOAuthUrl}
                   target="_blank"
@@ -423,7 +425,7 @@ export function AdminPixivPanel({
                 type="password"
                 value={pixivRefreshToken}
                 onChange={(e) => onPixivRefreshTokenChange(e.target.value)}
-                placeholder={pixivConfig?.has_env_refresh_token ? "留空使用后端环境变量" : "登录换取后自动填入"}
+                placeholder={pixivConfig?.has_env_refresh_token ? t("admin.pixiv.useEnvPlaceholder") : t("admin.pixiv.autoFillAfterLogin")}
               />
             </div>
             <PixivTokenControls
@@ -445,13 +447,13 @@ export function AdminPixivPanel({
           <div className="space-y-3 rounded-md border border-border bg-muted/25 p-3">
             <div className="space-y-1.5">
               <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="pixiv_cookie">浏览器 Cookie</Label>
+                <Label htmlFor="pixiv_cookie">{t("admin.pixiv.browserCookie")}</Label>
                 <a
                   href="/api/sync/pixiv/extension/download"
                   download
                   className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-xs font-medium shadow-sm hover:bg-muted"
                 >
-                  <ExternalLink className="h-3.5 w-3.5" /> 下载插件
+                  <ExternalLink className="h-3.5 w-3.5" /> {t("admin.pixiv.downloadExtension")}
                 </a>
               </div>
               <textarea
@@ -481,10 +483,10 @@ export function AdminPixivPanel({
         ) : pixivAuthMode === "local_import" ? (
           <div className="rounded-md border border-border bg-muted/35 p-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-2 font-medium text-foreground">
-              <FolderInput className="h-4 w-4" /> 本地导入
+              <FolderInput className="h-4 w-4" /> {t("admin.pixiv.localImport")}
             </div>
             <p className="mt-1">
-              可先使用上传页导入 PixivBatchDownloader 命名文件；后续会接入 metadata manifest 导入。
+              {t("admin.pixiv.localImportHint")}
             </p>
           </div>
         ) : (
@@ -495,7 +497,7 @@ export function AdminPixivPanel({
               type="password"
               value={pixivRefreshToken}
               onChange={(e) => onPixivRefreshTokenChange(e.target.value)}
-              placeholder={pixivConfig?.has_env_refresh_token ? "留空使用后端环境变量" : "未配置环境变量时必填"}
+              placeholder={pixivConfig?.has_env_refresh_token ? t("admin.pixiv.useEnvPlaceholder") : t("admin.pixiv.tokenRequiredPlaceholder")}
             />
             <PixivTokenControls
               busy={busy}
@@ -520,49 +522,49 @@ export function AdminPixivPanel({
             onClick={() => onPixivModeChange("pid")}
             className={cn("h-8 rounded-md text-xs font-medium", pixivMode === "pid" ? "bg-background shadow-sm" : "text-muted-foreground")}
           >
-            作品 PID
+            {t("admin.pixiv.pidMode")}
           </button>
           <button
             type="button"
             onClick={() => onPixivModeChange("user")}
             className={cn("h-8 rounded-md text-xs font-medium", pixivMode === "user" ? "bg-background shadow-sm" : "text-muted-foreground")}
           >
-            用户 UID
+            {t("admin.pixiv.uidMode")}
           </button>
         </div>
 
         {pixivMode === "pid" ? (
           <div className="space-y-1.5">
-            <Label htmlFor="pid">作品 PID</Label>
-            <Input id="pid" value={pid} onChange={(e) => onPidChange(e.target.value)} placeholder="例如 123456" />
+            <Label htmlFor="pid">{t("admin.pixiv.pidMode")}</Label>
+            <Input id="pid" value={pid} onChange={(e) => onPidChange(e.target.value)} placeholder={t("admin.pixiv.pidPlaceholder")} />
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-[1fr_110px] xl:grid-cols-1">
             <div className="space-y-1.5">
-              <Label htmlFor="pixiv_uid">用户 UID</Label>
-              <Input id="pixiv_uid" value={pixivUid} onChange={(e) => onPixivUidChange(e.target.value)} placeholder="例如 1234567" />
+              <Label htmlFor="pixiv_uid">{t("admin.pixiv.uidMode")}</Label>
+              <Input id="pixiv_uid" value={pixivUid} onChange={(e) => onPixivUidChange(e.target.value)} placeholder={t("admin.pixiv.uidPlaceholder")} />
             </div>
-            <NumberField label="抓取上限" value={pixivLimit} onChange={onPixivLimitChange} />
+            <NumberField label={t("admin.pixiv.limit")} value={pixivLimit} onChange={onPixivLimitChange} />
           </div>
         )}
 
         <div className="space-y-1.5">
-          <Label>来源范围</Label>
+          <Label>{t("admin.pixiv.sourceScope")}</Label>
           <select
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
             value={pixivSourceMode}
             onChange={(e) => onPixivSourceModeChange(e.target.value as PixivSourceMode)}
           >
-            <option value="artist_works">用户作品 / 单作品</option>
-            <option value="bookmarks" disabled>收藏夹（预留）</option>
-            <option value="following" disabled>关注新作（预留）</option>
-            <option value="search_tag" disabled>标签搜索（预留）</option>
-            <option value="ranking" disabled>排行榜（预留）</option>
+            <option value="artist_works">{t("admin.pixiv.scopeArtistWorks")}</option>
+            <option value="bookmarks" disabled>{t("admin.pixiv.scopeBookmarks")}</option>
+            <option value="following" disabled>{t("admin.pixiv.scopeFollowing")}</option>
+            <option value="search_tag" disabled>{t("admin.pixiv.scopeSearchTag")}</option>
+            <option value="ranking" disabled>{t("admin.pixiv.scopeRanking")}</option>
           </select>
         </div>
 
         <div className="space-y-1.5">
-          <Label>Storage strategy</Label>
+          <Label>{t("pages.upload.storageStrategy")}</Label>
           <select
             className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
             value={pixivStorageStrategy}
@@ -570,25 +572,25 @@ export function AdminPixivPanel({
           >
             {(pixivConfig?.storage_strategies?.length ? pixivConfig.storage_strategies : [{ name: "local", type: "local", is_default: true, is_remote: false }]).map((strategy) => (
               <option key={strategy.name} value={strategy.name}>
-                {strategy.name}{strategy.is_default ? " (default)" : ""} · {strategy.type}
+                {strategy.name}{strategy.is_default ? ` (${t("common.defaultOption")})` : ""} · {strategy.type}
               </option>
             ))}
           </select>
         </div>
 
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-          <ToggleField label="同步后重建索引" checked={pixivRebuildDb} onChange={onPixivRebuildDbChange} />
-          <ToggleField label="抓取后加入转码队列" checked={pixivGenerateCache} onChange={onPixivGenerateCacheChange} />
-          <ToggleField label="仅预检作品信息" checked={pixivDryRun} onChange={onPixivDryRunChange} />
-          <ToggleField label="优先公开抓取" checked={pixivPublicFirst} onChange={onPixivPublicFirstChange} />
+          <ToggleField label={t("admin.pixiv.rebuildAfterSync")} checked={pixivRebuildDb} onChange={onPixivRebuildDbChange} />
+          <ToggleField label={t("admin.pixiv.queueTranscode")} checked={pixivGenerateCache} onChange={onPixivGenerateCacheChange} />
+          <ToggleField label={t("admin.pixiv.dryRun")} checked={pixivDryRun} onChange={onPixivDryRunChange} />
+          <ToggleField label={t("admin.pixiv.publicFirst")} checked={pixivPublicFirst} onChange={onPixivPublicFirstChange} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <NumberField label="请求间隔" value={pixivDelay} suffix="s" onChange={onPixivDelayChange} />
-          <NumberField label="并发" value={pixivConcurrency} onChange={(value) => onPixivConcurrencyChange(Math.max(1, Math.min(value, pixivConfig?.max_concurrency ?? 1)))} />
-          <NumberField label="重试次数" value={pixivMaxRetries} onChange={onPixivMaxRetriesChange} />
-          <NumberField label="429 初始等待" value={pixivRetryBase} suffix="s" onChange={onPixivRetryBaseChange} />
-          <NumberField label="429 最大等待" value={pixivRetryMax} suffix="s" onChange={onPixivRetryMaxChange} />
+          <NumberField label={t("admin.pixiv.requestDelay")} value={pixivDelay} suffix="s" onChange={onPixivDelayChange} />
+          <NumberField label={t("admin.security.concurrency")} value={pixivConcurrency} onChange={(value) => onPixivConcurrencyChange(Math.max(1, Math.min(value, pixivConfig?.max_concurrency ?? 1)))} />
+          <NumberField label={t("admin.pixiv.maxRetries")} value={pixivMaxRetries} onChange={onPixivMaxRetriesChange} />
+          <NumberField label={t("admin.pixiv.retryBase")} value={pixivRetryBase} suffix="s" onChange={onPixivRetryBaseChange} />
+          <NumberField label={t("admin.pixiv.retryMax")} value={pixivRetryMax} suffix="s" onChange={onPixivRetryMaxChange} />
         </div>
 
         <Button
@@ -596,7 +598,7 @@ export function AdminPixivPanel({
           onClick={onSyncPixiv}
           className="w-full"
         >
-          <RefreshCw className="h-4 w-4" /> {pixivDryRun ? "开始预检" : "开始抓取"}
+          <RefreshCw className="h-4 w-4" /> {pixivDryRun ? t("admin.pixiv.startDryRun") : t("admin.pixiv.startSync")}
         </Button>
       </section>
 
@@ -604,12 +606,12 @@ export function AdminPixivPanel({
         <div className="flex items-center justify-between gap-2">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-medium">
-              <ListChecks className="h-4 w-4" /> 抓取日志
+              <ListChecks className="h-4 w-4" /> {t("admin.pixiv.logsTitle")}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              {pixivPollingMode === "active" && "自动刷新：抓取中，5 秒"}
-              {pixivPollingMode === "idle" && "自动刷新：空闲，20 秒"}
-              {pixivPollingMode === "paused" && "自动刷新：页面隐藏时暂停"}
+              {pixivPollingMode === "active" && t("admin.pixiv.pollingActive")}
+              {pixivPollingMode === "idle" && t("admin.pixiv.pollingIdle")}
+              {pixivPollingMode === "paused" && t("admin.pixiv.pollingPaused")}
               {pixivLastUpdatedAt && ` · ${formatDate(pixivLastUpdatedAt)}`}
             </p>
           </div>
@@ -619,7 +621,7 @@ export function AdminPixivPanel({
         </div>
         <div className="max-h-[520px] space-y-2 overflow-auto">
           {pixivLogs.map((log) => <PixivLogRow key={log.id} log={log} />)}
-          {pixivLogs.length === 0 && <EmptyLine text="暂无 Pixiv 抓取日志" />}
+          {pixivLogs.length === 0 && <EmptyLine text={t("admin.pixiv.emptyLogs")} />}
         </div>
       </section>
     </aside>

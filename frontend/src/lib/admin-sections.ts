@@ -21,17 +21,6 @@ export const ADMIN_SECTION_ORDER: AdminSection[] = [
   "developer",
 ];
 
-export const ADMIN_SECTION_LABELS: Record<AdminSection, string> = {
-  dashboard: "仪表盘",
-  pixiv: "Pixiv",
-  operations: "上传与转码",
-  security: "安全",
-  tags: "标签",
-  maintenance: "维护",
-  accounts: "账户",
-  developer: "开发者",
-};
-
 const ADMIN_SECTION_ROLES: Record<AdminSection, Role[]> = {
   dashboard: ["viewer", "editor", "admin", "developer"],
   pixiv: ["editor", "admin", "developer"],
@@ -69,10 +58,6 @@ export function getVisibleAdminSection(
 
 export function getAdminSectionHref(section: AdminSection): string {
   return section === "dashboard" ? "/admin" : `/admin?section=${section}`;
-}
-
-export function getAdminSectionLabel(section: AdminSection): string {
-  return ADMIN_SECTION_LABELS[section];
 }
 
 function isAdminSection(value: string | null | undefined): value is AdminSection {

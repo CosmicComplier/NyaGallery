@@ -27,7 +27,7 @@ export function AssetCard({
 }) {
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
 
   const ratio =
     asset.width && asset.height ? asset.height / asset.width : PLACEHOLDER_RATIO;
@@ -96,7 +96,7 @@ export function AssetCard({
             )}
             {asset.deletion_status && (
               <div className="rounded-full bg-destructive/90 px-2 py-0.5 text-[10px] font-medium text-white shadow">
-                {asset.deletion_status === "pending_cleanup" ? "待清理" : asset.deletion_status}
+                {asset.deletion_status === "pending_cleanup" ? t("pages.asset.pendingCleanup") : asset.deletion_status}
               </div>
             )}
           </div>

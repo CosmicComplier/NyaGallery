@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { Asset } from "@/lib/types";
+import { useI18n } from "@/components/providers/locale-provider";
 import { AssetCard } from "./asset-card";
+import type { Asset } from "@/lib/types";
 
 const BREAKPOINTS: Array<[number, number]> = [
   [1536, 6],
@@ -31,6 +32,7 @@ export function MasonryGrid({
   onTagClick?: (tag: string) => void;
   collapseWorks?: boolean;
 }) {
+  const { t } = useI18n();
   const [columns, setColumns] = useState(4);
 
   useEffect(() => {
@@ -99,7 +101,7 @@ export function MasonryGrid({
               onTagClick={onTagClick}
               href={href}
               groupCount={count}
-              groupLabel={count > 1 ? `同作品 ${count} 张图片` : undefined}
+              groupLabel={count > 1 ? t("gallery.groupLabel", { count }) : undefined}
             />
           ))}
         </div>

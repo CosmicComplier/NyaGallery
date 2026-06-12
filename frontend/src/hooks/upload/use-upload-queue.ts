@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { ApiError, NyaApi } from "@/lib/api";
 import type { StorageStrategySummary } from "@/lib/types";
 
@@ -24,6 +25,13 @@ type UseUploadQueueOptions = {
   onError: (message: string) => void;
 };
 
+const LOCAL_STORAGE_STRATEGY: StorageStrategySummary = {
+  name: "local",
+  type: "local",
+  is_default: true,
+  is_remote: false,
+};
+
 export function formatUploadBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
@@ -32,15 +40,14 @@ export function formatUploadBytes(n: number): string {
 }
 
 export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
+  const { t } = useI18n();
   const [items, setItems] = useState<UploadItem[]>([]);
   const [generateCache, setGenerateCache] = useState(false);
   const [defaultArtist, setDefaultArtist] = useState("");
   const [defaultTags, setDefaultTags] = useState<string[]>([]);
   const [tagAliasesText, setTagAliasesText] = useState("");
   const [storageStrategy, setStorageStrategy] = useState("local");
-  const [storageStrategies, setStorageStrategies] = useState<StorageStrategySummary[]>([
-    { name: "local", type: "local", is_default: true, is_remote: false },
-  ]);
+  const [storageStrategies, setStorageStrategies] = useState<StorageStrategySummary[]>([LOCAL_STORAGE_STRATEGY]);
   const [submitting, setSubmitting] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const itemsRef = useRef<UploadItem[]>([]);
@@ -90,11 +97,11 @@ export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
           });
           added++;
         }
-        if (added > 0) onSuccess(`已添加 ${added} 个文件`);
+        if (added > 0) onSuccess(t("pages.upload.uploadedCount", { count: added }));
         return next;
       });
     },
-    [onSuccess]
+    [onSuccess, t]
   );
 
   const updateItem = useCallback((id: string, patch: Partial<UploadItem>) => {
@@ -139,7 +146,11 @@ export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
       ));
       return response;
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : String(err));
+      setStorageStrategies([LOCAL_STORAGE_STRATEGY]);
+      setStorageStrategy("local");
+      if (!(err instanceof ApiError && err.status === 404)) {
+        onError(err instanceof ApiError ? err.message : String(err));
+      }
       return null;
     }
   }, [onError]);
@@ -147,7 +158,7 @@ export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
   const uploadAll = useCallback(async () => {
     const queue = items.filter((item) => item.status === "pending" || item.status === "error");
     if (queue.length === 0) {
-      onError("没有待上传文件");
+      onError(t("pages.upload.noPendingFiles"));
       return;
     }
 
@@ -168,7 +179,7 @@ export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
     for (const item of queue) {
       updateItem(item.id, { status: "uploading", message: undefined });
       const form = new FormData();
-      form.set("file", item.file);
+      form.set("file", item.file, item.file.name);
       form.set("title", item.title);
       const effectiveArtist = (item.artist || defaultArtist).trim();
       if (effectiveArtist) form.set("artist_name", effectiveArtist);
@@ -190,7 +201,7 @@ export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
         updateItem(item.id, {
           status: "done",
           assetKey: asset.asset_key,
-          message: asset.duplicate_of ? `重复于 ${asset.duplicate_of}` : "上传成功",
+          message: asset.duplicate_of ? t("pages.upload.duplicateOf", { assetKey: asset.duplicate_of }) : t("pages.upload.success"),
         });
         okCount++;
       } catch (err) {
@@ -202,13 +213,13 @@ export function useUploadQueue({ onSuccess, onError }: UseUploadQueueOptions) {
 
     setSubmitting(false);
     if (okCount > 0 && failCount === 0) {
-      onSuccess(`全部 ${okCount} 个文件已上传`);
+      onSuccess(t("pages.upload.summaryAllDone", { count: okCount }));
     } else if (okCount > 0) {
-      onSuccess(`完成 ${okCount} 个，失败 ${failCount} 个`);
+      onSuccess(t("pages.upload.summaryPartial", { ok: okCount, failed: failCount }));
     } else {
-      onError(`全部失败（${failCount}）`);
+      onError(t("pages.upload.allFailed", { count: failCount }));
     }
-  }, [defaultArtist, defaultTags, generateCache, items, onError, onSuccess, storageStrategy, tagAliasesText, updateItem]);
+  }, [defaultArtist, defaultTags, generateCache, items, onError, onSuccess, storageStrategy, tagAliasesText, t, updateItem]);
 
   return {
     items,
@@ -268,16 +279,16 @@ function parseTagAliases(value: string): Record<string, string[]> {
       canonical = left;
       aliases = right;
     } else {
-      throw new Error(`别名格式错误：${line}`);
+      throw new Error(`Alias format error: ${line}`);
     }
 
     const tag = canonical.trim().toLowerCase().replace(/\s+/g, "_");
     const names = aliases
-      .split(/[，,]/)
+      .split(/[,，]/)
       .map((item) => item.trim())
       .filter(Boolean);
     if (!tag || names.length === 0) {
-      throw new Error(`别名格式错误：${line}`);
+      throw new Error(`Alias format error: ${line}`);
     }
     result[tag] = Array.from(new Set([...(result[tag] ?? []), ...names]));
   }

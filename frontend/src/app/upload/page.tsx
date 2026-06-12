@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   CheckCircle2,
   FilePlus2,
@@ -11,20 +11,22 @@ import {
   UploadCloud,
   XCircle,
 } from "lucide-react";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useI18n } from "@/components/providers/locale-provider";
+import { useToast } from "@/components/providers/toast-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/components/providers/auth-provider";
-import { useToast } from "@/components/providers/toast-provider";
+import { TagChipInput } from "@/components/ui/tag-chip-input";
 import { formatUploadBytes, useUploadQueue } from "@/hooks/upload/use-upload-queue";
 import { cn } from "@/lib/utils";
-import { TagChipInput } from "@/components/ui/tag-chip-input";
 
 const ACCEPT = "image/*,.zip";
 
 export default function UploadPage() {
   const router = useRouter();
   const { token, ready } = useAuth();
+  const { t } = useI18n();
   const toast = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
   const {
@@ -60,12 +62,10 @@ export default function UploadPage() {
   if (ready && !token) {
     return (
       <div className="container max-w-md py-16 text-center">
-        <h1 className="mb-2 text-lg font-semibold">需要登录</h1>
-        <p className="text-sm text-muted-foreground">
-          上传需要 editor、admin 或 developer 权限。
-        </p>
+        <h1 className="mb-2 text-lg font-semibold">{t("common.loginRequired")}</h1>
+        <p className="text-sm text-muted-foreground">{t("pages.upload.loginDescription")}</p>
         <Button className="mt-4" onClick={() => router.push("/login")}>
-          去登录
+          {t("auth.goLogin")}
         </Button>
       </div>
     );
@@ -78,14 +78,11 @@ export default function UploadPage() {
           <UploadCloud className="h-5 w-5" />
         </span>
         <div>
-          <h1 className="text-xl font-semibold">上传作品</h1>
-          <p className="text-xs text-muted-foreground">
-            支持多文件、累加添加。原始字节不会被修改，仅生成 AVIF / WEBP 缓存。
-          </p>
+          <h1 className="text-xl font-semibold">{t("pages.upload.title")}</h1>
+          <p className="text-xs text-muted-foreground">{t("pages.upload.description")}</p>
         </div>
       </div>
 
-      {/* Drop zone / picker */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -108,18 +105,16 @@ export default function UploadPage() {
           <FilePlus2 className="h-6 w-6" />
         </span>
         <p className="text-sm">
-          拖拽图片到这里，或者
+          {t("pages.upload.dropText")}
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
             className="ml-1 font-medium text-primary hover:underline"
           >
-            从资源管理器选择
+            {t("pages.upload.pickFiles")}
           </button>
         </p>
-        <p className="text-xs text-muted-foreground">
-          支持多选，可以多次添加，文件按所选顺序上传
-        </p>
+        <p className="text-xs text-muted-foreground">{t("pages.upload.dragHint")}</p>
         <input
           ref={inputRef}
           type="file"
@@ -133,10 +128,9 @@ export default function UploadPage() {
         />
       </div>
 
-      {/* Default fields */}
       <div className="mt-5 grid gap-4 rounded-2xl border border-border bg-card p-4 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label htmlFor="storage_strategy">Storage strategy</Label>
+          <Label htmlFor="storage_strategy">{t("pages.upload.storageStrategy")}</Label>
           <select
             id="storage_strategy"
             value={storageStrategy}
@@ -145,36 +139,36 @@ export default function UploadPage() {
           >
             {storageStrategies.map((strategy) => (
               <option key={strategy.name} value={strategy.name}>
-                {strategy.name}{strategy.is_default ? " (default)" : ""} · {strategy.type}
+                {strategy.name}{strategy.is_default ? ` (${t("common.defaultOption")})` : ""} · {strategy.type}
               </option>
             ))}
           </select>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="default_artist">默认作者</Label>
+          <Label htmlFor="default_artist">{t("pages.upload.defaultArtist")}</Label>
           <Input
             id="default_artist"
             value={defaultArtist}
             onChange={(e) => setDefaultArtist(e.target.value)}
-            placeholder="留空，单条目可单独覆盖"
+            placeholder={t("pages.upload.defaultArtistPlaceholder")}
           />
         </div>
         <div className="space-y-1.5 sm:col-span-2">
-          <Label>默认标签</Label>
+          <Label>{t("pages.upload.defaultTags")}</Label>
           <TagChipInput
             tags={defaultTags}
             onChange={setDefaultTags}
-            placeholder="输入标签后回车，应用到所有条目"
+            placeholder={t("pages.upload.defaultTagsPlaceholder")}
           />
         </div>
         <div className="space-y-1.5 sm:col-span-3">
-          <Label htmlFor="tag_aliases">标签别名</Label>
+          <Label htmlFor="tag_aliases">{t("pages.upload.tagAliases")}</Label>
           <textarea
             id="tag_aliases"
             value={tagAliasesText}
             onChange={(e) => setTagAliasesText(e.target.value)}
             rows={3}
-            placeholder={"character:misaka_mikoto = 御坂美琴, 美琴\n超电磁炮 -> series:toaru"}
+            placeholder={t("pages.upload.tagAliasesPlaceholder")}
             className="w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-xs outline-none focus-ring"
           />
         </div>
@@ -185,15 +179,14 @@ export default function UploadPage() {
             onChange={(e) => setGenerateCache(e.target.checked)}
             className="h-4 w-4 rounded border-border accent-[hsl(var(--primary))]"
           />
-          上传后立即生成预览缓存
+          {t("pages.upload.generateCache")}
         </label>
       </div>
 
-      {/* List */}
       <div className="mt-5 space-y-3">
         {items.length === 0 && (
           <div className="rounded-xl border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
-            还没有文件，先添加几个吧
+            {t("pages.upload.empty")}
           </div>
         )}
         {items.map((item, idx) => (
@@ -245,7 +238,7 @@ export default function UploadPage() {
                         href={`/asset/${encodeURIComponent(item.assetKey)}`}
                         className="ml-2 underline hover:text-primary"
                       >
-                        查看
+                        {t("pages.upload.view")}
                       </a>
                     )}
                   </p>
@@ -253,7 +246,7 @@ export default function UploadPage() {
               </div>
 
               <div>
-                <Label className="text-[11px]">标题</Label>
+                <Label className="text-[11px]">{t("pages.upload.titleField")}</Label>
                 <Input
                   value={item.title}
                   onChange={(e) => updateItem(item.id, { title: e.target.value })}
@@ -262,11 +255,11 @@ export default function UploadPage() {
                 />
               </div>
               <div>
-                <Label className="text-[11px]">作者</Label>
+                <Label className="text-[11px]">{t("pages.upload.defaultArtist")}</Label>
                 <Input
                   value={item.artist}
                   onChange={(e) => updateItem(item.id, { artist: e.target.value })}
-                  placeholder={defaultArtist || "可选"}
+                  placeholder={defaultArtist || t("pages.upload.defaultArtistPlaceholder")}
                   className="h-8"
                   disabled={item.status === "uploading"}
                 />
@@ -276,17 +269,17 @@ export default function UploadPage() {
                 <Input
                   value={item.sourceId}
                   onChange={(e) => updateItem(item.id, { sourceId: e.target.value })}
-                  placeholder="留空使用 SHA256 前缀"
+                  placeholder={t("pages.upload.sourceIdPlaceholder")}
                   className="h-8"
                   disabled={item.status === "uploading"}
                 />
               </div>
               <div className="sm:col-span-3">
-                <Label className="text-[11px]">标签</Label>
+                <Label className="text-[11px]">{t("pages.upload.tags")}</Label>
                 <TagChipInput
                   tags={item.tags}
                   onChange={(tags) => updateItem(item.id, { tags })}
-                  placeholder="输入标签后回车"
+                  placeholder={t("pages.upload.tagsPlaceholder")}
                   disabled={item.status === "uploading"}
                   small
                 />
@@ -307,17 +300,17 @@ export default function UploadPage() {
                 {item.status === "uploading" && <Loader2 className="h-3 w-3 animate-spin" />}
                 {item.status === "done" && <CheckCircle2 className="h-3 w-3" />}
                 {item.status === "error" && <XCircle className="h-3 w-3" />}
-                {item.status === "pending" && "待上传"}
-                {item.status === "uploading" && "上传中"}
-                {item.status === "done" && "已完成"}
-                {item.status === "error" && "失败"}
+                {item.status === "pending" && t("pages.upload.pending")}
+                {item.status === "uploading" && t("pages.upload.uploading")}
+                {item.status === "done" && t("pages.upload.done")}
+                {item.status === "error" && t("pages.upload.error")}
               </div>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => removeItem(item.id)}
                 disabled={item.status === "uploading"}
-                aria-label="移除"
+                aria-label={t("pages.upload.clear")}
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </Button>
@@ -326,20 +319,19 @@ export default function UploadPage() {
         ))}
       </div>
 
-      {/* Sticky bottom action bar */}
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 backdrop-blur">
         <div className="container flex flex-wrap items-center gap-3 py-3">
           <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span>
-              共 <span className="font-medium text-foreground">{stats.total}</span> 个 ·{" "}
+              {t("common.all")} <span className="font-medium text-foreground">{stats.total}</span> ·{" "}
               {formatUploadBytes(stats.bytes)}
             </span>
-            {stats.pending > 0 && <span>待 {stats.pending}</span>}
+            {stats.pending > 0 && <span>{t("pages.upload.pending")} {stats.pending}</span>}
             {stats.done > 0 && (
-              <span className="text-emerald-600 dark:text-emerald-400">完成 {stats.done}</span>
+              <span className="text-emerald-600 dark:text-emerald-400">{t("pages.upload.done")} {stats.done}</span>
             )}
             {stats.errored > 0 && (
-              <span className="text-destructive">失败 {stats.errored}</span>
+              <span className="text-destructive">{t("pages.upload.error")} {stats.errored}</span>
             )}
           </div>
           <div className="ml-auto flex flex-wrap items-center gap-2">
@@ -349,7 +341,7 @@ export default function UploadPage() {
               onClick={() => inputRef.current?.click()}
               disabled={submitting}
             >
-              <FilePlus2 className="h-4 w-4" /> 继续添加
+              <FilePlus2 className="h-4 w-4" /> {t("pages.upload.addMore")}
             </Button>
             {stats.done > 0 && (
               <Button
@@ -358,7 +350,7 @@ export default function UploadPage() {
                 onClick={() => clearAll("done")}
                 disabled={submitting}
               >
-                清除已完成
+                {t("pages.upload.clearDone")}
               </Button>
             )}
             {items.length > 0 && (
@@ -368,18 +360,18 @@ export default function UploadPage() {
                 onClick={() => clearAll("all")}
                 disabled={submitting}
               >
-                <Trash2 className="h-4 w-4" /> 清空
+                <Trash2 className="h-4 w-4" /> {t("pages.upload.clear")}
               </Button>
             )}
             <Button onClick={uploadAll} disabled={submitting || stats.pending + stats.errored === 0}>
               {submitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> 上传中
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("pages.upload.uploading")}
                 </>
               ) : (
                 <>
                   <UploadCloud className="h-4 w-4" />
-                  开始上传
+                  {t("pages.upload.start")}
                   {stats.pending + stats.errored > 0 && (
                     <span className="ml-1 rounded-full bg-primary-foreground/20 px-1.5 text-[11px]">
                       {stats.pending + stats.errored}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { NyaApi } from "@/lib/api";
 import type {
   AccessLogItem,
@@ -17,6 +18,7 @@ type UseAdminSecurityOptions = {
 };
 
 export function useAdminSecurity({ run, onUsersLoaded }: UseAdminSecurityOptions) {
+  const { t } = useI18n();
   const [securityDraft, setSecurityDraft] = useState<SecuritySettings | null>(null);
   const [accessLogs, setAccessLogs] = useState<AccessLogItem[]>([]);
   const [accessLogFilter, setAccessLogFilter] = useState("");
@@ -41,10 +43,10 @@ export function useAdminSecurity({ run, onUsersLoaded }: UseAdminSecurityOptions
     const saved = await run(
       "security-save",
       () => NyaApi.updateSecuritySettings(payload),
-      () => "安全设置已保存"
+      () => t("admin.security.saved")
     );
     if (saved) setSecurityDraft(saved);
-  }, [run, securityDraft]);
+  }, [run, securityDraft, t]);
 
   const patchSecurity = useCallback((patch: Partial<SecuritySettings>) => {
     setSecurityDraft((current) => (current ? { ...current, ...patch } : current));

@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
 export function TagChipInput({
@@ -19,6 +20,7 @@ export function TagChipInput({
   small?: boolean;
   getLabel?: (tag: string) => string;
 }) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -71,7 +73,7 @@ export function TagChipInput({
           <span className="font-medium">{getLabel ? getLabel(tag) : tag.replace(/_/g, " ")}</span>
           <button
             type="button"
-            aria-label={`移除 ${tag}`}
+            aria-label={t("common.removeItem", { item: tag })}
             onClick={(e) => {
               e.stopPropagation();
               removeAt(idx);

@@ -44,6 +44,31 @@ export function sourceTagQuery(name: string, translatedName?: string | null): st
   return `source_tag:${canonicalTagBody(basis)}`;
 }
 
+export function sourceTagLabel(
+  name: string,
+  translatedName?: string | null,
+  locale = "zh-CN",
+): string {
+  const raw = name.trim();
+  const translated = translatedName?.trim() || "";
+  if (locale.toLowerCase().startsWith("en")) {
+    return translated || raw;
+  }
+  return raw || translated;
+}
+
+export function sourceTagSecondaryLabel(
+  name: string,
+  translatedName?: string | null,
+  locale = "zh-CN",
+): string | null {
+  const raw = name.trim();
+  const translated = translatedName?.trim() || "";
+  const primary = sourceTagLabel(name, translatedName, locale);
+  const secondary = locale.toLowerCase().startsWith("en") ? raw : translated;
+  return secondary && secondary !== primary ? secondary : null;
+}
+
 export function isHiddenTag(tag: string): boolean {
   const normalized = tag.trim().toLowerCase();
   const idx = normalized.indexOf(":");

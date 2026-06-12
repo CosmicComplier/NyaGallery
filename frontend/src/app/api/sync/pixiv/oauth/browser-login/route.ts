@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const message =
       error instanceof Error && error.name === "AbortError"
-        ? "Pixiv 登录超时。若出现验证码、Passkey 或 2FA，请使用可见浏览器命令获取 Refresh Token。"
+        ? "Pixiv login timed out. If CAPTCHA, Passkey, or 2FA appears, use visible browser login to get the Refresh Token."
         : error instanceof Error
           ? error.message
           : String(error);

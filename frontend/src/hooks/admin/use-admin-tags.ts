@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { NyaApi } from "@/lib/api";
 import type { TagSummaryItem } from "@/lib/types";
 import type { AdminActionRunner } from "./use-admin-action";
@@ -10,6 +11,7 @@ type UseAdminTagsOptions = {
 };
 
 export function useAdminTags({ run }: UseAdminTagsOptions) {
+  const { t } = useI18n();
   const [tags, setTags] = useState<TagSummaryItem[]>([]);
   const [tagFilter, setTagFilter] = useState("");
   const [aliasDrafts, setAliasDrafts] = useState<Record<string, string>>({});
@@ -47,19 +49,19 @@ export function useAdminTags({ run }: UseAdminTagsOptions) {
       await run(
         `tag-${tagName}`,
         () => NyaApi.updateTagAliases(tagName, aliasesFromDraft(tagName)),
-        (tag) => `已保存 ${tag.name}`
+        (tag) => t("admin.tags.aliasSaved", { name: tag.name })
       );
       await loadTags();
     },
-    [aliasesFromDraft, loadTags, run]
+    [aliasesFromDraft, loadTags, run, t]
   );
 
   const exportTagSummary = useCallback(async () => {
     await run("tag-export", () => NyaApi.exportTagSummary(), (result) => {
       setSummaryPath(result.path);
-      return `已导出 ${result.total} 个标签`;
+      return t("admin.tags.exported", { count: result.total });
     });
-  }, [run]);
+  }, [run, t]);
 
   return {
     tags,

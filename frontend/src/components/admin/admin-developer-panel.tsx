@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberField, ToggleField } from "@/components/admin/admin-fields";
+import { useI18n } from "@/components/providers/locale-provider";
 import type { BackendConfig, DeveloperConfigResponse, DeveloperConsoleResponse, UserSummary } from "@/lib/types";
 
 type AdminDeveloperPanelProps = {
@@ -37,6 +38,8 @@ export function AdminDeveloperPanel({
   onPasswordDraftChange,
   onResetPassword,
 }: AdminDeveloperPanelProps) {
+  const { t } = useI18n();
+
   function patch(section: keyof BackendConfig, values: Record<string, unknown>) {
     onConfigDraftChange((current) => (
       current
@@ -51,20 +54,20 @@ export function AdminDeveloperPanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-medium">
-              <Settings2 className="h-4 w-4" /> 后端配置
+              <Settings2 className="h-4 w-4" /> {t("admin.developer.configTitle")}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
               {configResponse
-                ? `${configResponse.path}${configResponse.exists ? "" : " · 将新建"}`
-                : "读取 nyagallery.toml 后可编辑。"}
+                ? `${configResponse.path}${configResponse.exists ? "" : t("admin.maintenance.willCreateSuffix")}`
+                : t("admin.developer.configDescription")}
             </p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={busy === "developer-config-refresh"} onClick={onRefreshConfig}>
-              刷新
+              {t("common.refresh")}
             </Button>
             <Button size="sm" disabled={!configDraft || busy === "developer-config-save"} onClick={onSaveConfig}>
-              <Save className="h-4 w-4" /> 保存配置
+              <Save className="h-4 w-4" /> {t("admin.developer.saveConfig")}
             </Button>
           </div>
         </div>
@@ -72,7 +75,7 @@ export function AdminDeveloperPanel({
         {configDraft && (
           <div className="space-y-5">
             <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-200">
-              保存会重写 TOML 文件；大多数设置需要重启后端后才会完整生效。secret_key 和 Pixiv token/cookie 留空会保留旧值；没有 secret_key 时保存会自动生成。
+              {t("admin.developer.saveWarning")}
             </div>
 
             <ConfigGroup title="Core">
@@ -111,7 +114,7 @@ export function AdminDeveloperPanel({
               <div className="md:col-span-2 xl:col-span-3">
                 <div className="flex items-start gap-2 rounded-md border border-border bg-muted/35 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-                  <span>部署密钥用于可逆加密 Pixiv 与云储存凭据。部署初始化会预生成；多实例部署请确保所有后端使用同一值。</span>
+                  <span>{t("admin.developer.secretHint")}</span>
                 </div>
               </div>
               <TextField type="password" label="secret_key" value={configDraft.security?.secret_key ?? ""} onChange={(value) => patch("security", { secret_key: value })} />
@@ -129,14 +132,14 @@ export function AdminDeveloperPanel({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-sm font-medium">
-              <Server className="h-4 w-4" /> 开发者操作台
+              <Server className="h-4 w-4" /> {t("admin.developer.consoleTitle")}
             </h2>
             <p className="mt-1 text-xs text-muted-foreground">
-              预留多后端节点列表；当前只接入本地后端的白名单维护动作。
+              {t("admin.developer.consoleDescription")}
             </p>
           </div>
           <Button variant="outline" size="sm" disabled={busy === "developer-console-refresh"} onClick={onRefreshConsole}>
-            刷新
+            {t("common.refresh")}
           </Button>
         </div>
 
@@ -144,7 +147,7 @@ export function AdminDeveloperPanel({
           <div className="space-y-3">
             <div className="flex items-start gap-2 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-              <span>{consoleStatus.enabled ? consoleStatus.warning : "开发者操作台未启用；请在配置中打开 console_enabled 并重启后端。"}</span>
+              <span>{consoleStatus.enabled ? consoleStatus.warning : t("admin.developer.consoleDisabled")}</span>
             </div>
 
             <div className="grid gap-3 md:grid-cols-2">
@@ -164,17 +167,17 @@ export function AdminDeveloperPanel({
 
             <div className="space-y-3 rounded-md border border-border p-3">
               <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
-                <KeyRound className="h-4 w-4" /> 重置任意用户密码
+                <KeyRound className="h-4 w-4" /> {t("admin.developer.resetPasswordTitle")}
               </h3>
               <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
                 <div className="space-y-1.5">
-                  <Label>用户</Label>
+                  <Label>{t("auth.username")}</Label>
                   <select
                     className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-ring"
                     value={passwordDraft.username}
                     onChange={(event) => onPasswordDraftChange((draft) => ({ ...draft, username: event.target.value }))}
                   >
-                    <option value="">选择用户</option>
+                    <option value="">{t("admin.developer.selectUser")}</option>
                     {users.map((user) => (
                       <option key={user.id} value={user.username}>
                         {user.username} ({user.role})
@@ -184,7 +187,7 @@ export function AdminDeveloperPanel({
                 </div>
                 <TextField
                   type="password"
-                  label="新密码"
+                  label={t("admin.accounts.newPassword")}
                   value={passwordDraft.password}
                   onChange={(value) => onPasswordDraftChange((draft) => ({ ...draft, password: value }))}
                 />
@@ -193,7 +196,7 @@ export function AdminDeveloperPanel({
                   disabled={!consoleStatus.enabled || !passwordDraft.username || !passwordDraft.password || busy === "developer-reset-password"}
                   onClick={onResetPassword}
                 >
-                  重置
+                  {t("admin.accounts.reset")}
                 </Button>
               </div>
             </div>

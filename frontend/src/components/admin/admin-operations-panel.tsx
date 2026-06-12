@@ -46,10 +46,10 @@ export function AdminOperationsPanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-medium">
-            <Activity className="h-4 w-4" /> 上传与转码
+            <Activity className="h-4 w-4" /> {t("admin.ops.title")}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {isAdmin ? "admin 可查看全部用户；非 admin 只会看到自己的上传与转码任务。" : "这里只显示你自己上传的文件和转码任务。"}
+            {isAdmin ? t("admin.ops.scopeAdmin") : t("admin.ops.scopeOwn")}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -65,7 +65,7 @@ export function AdminOperationsPanel({
             )}
           </span>
           <Button variant="outline" size="sm" disabled={busy === "ops-refresh"} onClick={onRefresh}>
-            <RefreshCw className="h-4 w-4" /> 刷新
+            <RefreshCw className="h-4 w-4" /> {t("admin.ops.refresh")}
           </Button>
         </div>
       </div>
@@ -79,19 +79,19 @@ export function AdminOperationsPanel({
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="space-y-2">
           <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
-            <Gauge className="h-3.5 w-3.5" /> 转码任务
+            <Gauge className="h-3.5 w-3.5" /> {t("admin.ops.transcodeJobs")}
           </h3>
           <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {transcodeJobs.map((job) => (
               <TranscodeJobRow key={job.job_id} job={job} />
             ))}
-            {transcodeJobs.length === 0 && <EmptyLine text="暂无转码任务" />}
+            {transcodeJobs.length === 0 && <EmptyLine text={t("admin.ops.emptyTranscode")} />}
           </div>
         </div>
 
         <div className="space-y-2">
           <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
-            <History className="h-3.5 w-3.5" /> 上传历史
+            <History className="h-3.5 w-3.5" /> {t("admin.ops.uploadHistory")}
           </h3>
           <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
             {uploadHistory.map((item) => (
@@ -102,20 +102,20 @@ export function AdminOperationsPanel({
                 onStartTranscode={() => onStartTranscode(item.asset_key)}
               />
             ))}
-            {uploadHistory.length === 0 && <EmptyLine text="暂无上传历史" />}
+            {uploadHistory.length === 0 && <EmptyLine text={t("admin.ops.emptyUploads")} />}
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
         <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
-          <ListChecks className="h-3.5 w-3.5" /> 最近日志
+          <ListChecks className="h-3.5 w-3.5" /> {t("admin.ops.recentLogs")}
         </h3>
         <div className="max-h-72 overflow-auto rounded-lg border border-border">
           {uploadLogs.map((log) => (
             <UploadLogRow key={log.id} log={log} />
           ))}
-          {uploadLogs.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">暂无日志</div>}
+          {uploadLogs.length === 0 && <div className="p-6 text-center text-sm text-muted-foreground">{t("admin.ops.emptyLogs")}</div>}
         </div>
       </div>
     </section>

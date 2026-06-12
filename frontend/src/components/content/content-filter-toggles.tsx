@@ -1,9 +1,11 @@
 "use client";
 
 import { useContentPreferences } from "@/components/providers/content-preferences-provider";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 
 export function ContentFilterToggles({ className }: { className?: string }) {
+  const { t } = useI18n();
   const { showSensitive, setShowSensitive, showAi, setShowAi, canViewSensitiveContent } =
     useContentPreferences();
 
@@ -14,14 +16,14 @@ export function ContentFilterToggles({ className }: { className?: string }) {
           label="R-18"
           checked={showSensitive}
           onCheckedChange={setShowSensitive}
-          title="显示 R-18 / R-18G"
+          title={t("content.showSensitive")}
         />
       )}
       <FilterSwitch
         label="AI"
         checked={showAi}
         onCheckedChange={setShowAi}
-        title="显示 AI 生成作品"
+        title={t("content.showAi")}
       />
     </div>
   );

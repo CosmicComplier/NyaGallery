@@ -4,6 +4,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { FileJson, RefreshCw, Save, Search, Tags } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/components/providers/locale-provider";
 import type { TagSummaryItem } from "@/lib/types";
 
 type AdminTagsPanelProps = {
@@ -31,24 +32,26 @@ export function AdminTagsPanel({
   onExportTagSummary,
   onSaveAliases,
 }: AdminTagsPanelProps) {
+  const { t } = useI18n();
+
   return (
     <section className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-medium">
-          <Tags className="h-4 w-4" /> 标签别名
+          <Tags className="h-4 w-4" /> {t("admin.tags.title")}
         </h2>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={busy === "tag-refresh"} onClick={onRefreshTags}>
-            <RefreshCw className="h-4 w-4" /> 刷新
+            <RefreshCw className="h-4 w-4" /> {t("common.refresh")}
           </Button>
           <Button variant="outline" size="sm" disabled={busy === "tag-export"} onClick={onExportTagSummary}>
-            <FileJson className="h-4 w-4" /> 导出汇总
+            <FileJson className="h-4 w-4" /> {t("admin.tags.exportSummary")}
           </Button>
         </div>
       </div>
       <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input value={tagFilter} onChange={(e) => onTagFilterChange(e.target.value)} placeholder="搜索 tag / alias" className="pl-8" />
+        <Input value={tagFilter} onChange={(e) => onTagFilterChange(e.target.value)} placeholder={t("admin.tags.searchPlaceholder")} className="pl-8" />
       </div>
       {summaryPath && <div className="rounded-md border border-border bg-muted p-2 text-xs text-muted-foreground">{summaryPath}</div>}
       <div className="max-h-[520px] overflow-auto rounded-lg border border-border">
@@ -73,13 +76,13 @@ export function AdminTagsPanel({
               variant="outline"
               disabled={busy === `tag-${tag.name}` || tag.source === "observed"}
               onClick={() => onSaveAliases(tag.name)}
-              title={tag.source === "observed" ? "先在标签目录中创建该 tag" : "保存别名"}
+              title={tag.source === "observed" ? t("admin.tags.createFirst") : t("admin.tags.saveAlias")}
             >
-              <Save className="h-4 w-4" /> 保存
+              <Save className="h-4 w-4" /> {t("common.save")}
             </Button>
           </div>
         ))}
-        {filteredTags.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">没有标签</div>}
+        {filteredTags.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">{t("pages.search.tagsEmpty")}</div>}
       </div>
     </section>
   );

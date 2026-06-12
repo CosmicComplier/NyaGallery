@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyLine } from "@/components/admin/admin-fields";
 import { TokenList } from "@/components/admin/admin-operation-rows";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import type { ApiTokenSummary, Role, UserSummary } from "@/lib/types";
 
@@ -76,6 +77,7 @@ export function AdminAccountsPanel({
   onChangePassword,
   onResetUserPassword,
 }: AdminAccountsPanelProps) {
+  const { t } = useI18n();
   const activeTokenTarget = isAdmin ? tokenTarget : currentUsername;
   const creatableRoles = isDeveloper ? DEVELOPER_CREATABLE_ROLES : ADMIN_CREATABLE_ROLES;
 
@@ -84,19 +86,19 @@ export function AdminAccountsPanel({
       {isAdmin && (
         <section className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-sm">
           <h2 className="flex items-center gap-2 text-sm font-medium">
-            <UserPlus className="h-4 w-4" /> 创建用户
+            <UserPlus className="h-4 w-4" /> {t("admin.accounts.createUser")}
           </h2>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label>用户名</Label>
+              <Label>{t("auth.username")}</Label>
               <Input value={newUser.username} onChange={(e) => onNewUserChange((user) => ({ ...user, username: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label>密码</Label>
+              <Label>{t("auth.password")}</Label>
               <Input type="password" value={newUser.password} onChange={(e) => onNewUserChange((user) => ({ ...user, password: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label>角色</Label>
+              <Label>{t("admin.accounts.role")}</Label>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
                 value={newUser.role}
@@ -108,51 +110,53 @@ export function AdminAccountsPanel({
           </div>
           {!isDeveloper && (
             <p className="text-xs text-muted-foreground">
-              developer 账号只能由已有 developer 或本机 CLI 创建。
+              {t("admin.accounts.developerCreateHint")}
             </p>
           )}
           <Button size="sm" disabled={!newUser.username || !newUser.password || busy === "create-user"} onClick={onCreateUser}>
-            创建
+            {t("admin.accounts.create")}
           </Button>
         </section>
       )}
 
       <section className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-sm font-medium">
-          <KeyRound className="h-4 w-4" /> 签发 API Token
+          <KeyRound className="h-4 w-4" /> {t("admin.accounts.issueToken")}
         </h2>
         <div className="flex flex-wrap items-end gap-2">
           {isAdmin ? (
             <div className="grow space-y-1.5">
-              <Label>用户名</Label>
+              <Label>{t("auth.username")}</Label>
               <Input value={tokenTarget} onChange={(e) => onTokenTargetChange(e.target.value)} />
             </div>
           ) : (
             <div className="grow space-y-1.5">
-              <Label>当前用户</Label>
+              <Label>{t("admin.accounts.currentUser")}</Label>
               <Input value={currentUsername} readOnly />
             </div>
           )}
           <div className="grow space-y-1.5">
-            <Label>Token 备注</Label>
-            <Input value={tokenLabel} onChange={(e) => onTokenLabelChange(e.target.value)} placeholder="例如 scripts / phone / friend" />
+            <Label>{t("admin.accounts.tokenLabel")}</Label>
+            <Input value={tokenLabel} onChange={(e) => onTokenLabelChange(e.target.value)} placeholder={t("admin.accounts.tokenLabelPlaceholder")} />
           </div>
           <Button variant="outline" disabled={busy === "token-list" || !activeTokenTarget} onClick={() => onLoadTokens(activeTokenTarget)}>
-            查看已有
+            {t("admin.accounts.viewExisting")}
           </Button>
           <Button disabled={busy === "token" || !activeTokenTarget} onClick={() => onIssueToken(activeTokenTarget)}>
-            签发
+            {t("admin.accounts.issue")}
           </Button>
         </div>
         {issuedToken && (
           <div className="space-y-1 rounded-md border border-border bg-muted p-3 text-xs">
-            <p className="text-muted-foreground">请立即保存，仅显示一次：</p>
+            <p className="text-muted-foreground">{t("admin.accounts.saveTokenNow")}</p>
             <code className="block break-all font-mono">{issuedToken}</code>
           </div>
         )}
         <div className="space-y-2">
           <h3 className="text-xs font-medium uppercase text-muted-foreground">
-            {isAdmin && tokenTarget && tokenTarget !== currentUsername ? `${tokenTarget} 的 Token` : "当前用户已有 Token"}
+            {isAdmin && tokenTarget && tokenTarget !== currentUsername
+              ? t("admin.accounts.userTokens", { username: tokenTarget })
+              : t("admin.accounts.currentTokens")}
           </h3>
           <TokenList tokens={apiTokens} busy={busy} onRevoke={(tokenId) => onRevokeToken(tokenId, activeTokenTarget)} />
         </div>
@@ -160,11 +164,11 @@ export function AdminAccountsPanel({
 
       <section className="space-y-3 rounded-lg border border-border bg-card p-6 shadow-sm">
         <h2 className="flex items-center gap-2 text-sm font-medium">
-          <LockKeyhole className="h-4 w-4" /> 重设密码
+          <LockKeyhole className="h-4 w-4" /> {t("admin.accounts.resetPassword")}
         </h2>
         <div className="grid gap-3 md:grid-cols-3">
           <div className="space-y-1.5">
-            <Label>旧密码</Label>
+            <Label>{t("admin.accounts.oldPassword")}</Label>
             <Input
               type="password"
               autoComplete="current-password"
@@ -173,7 +177,7 @@ export function AdminAccountsPanel({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>新密码</Label>
+            <Label>{t("admin.accounts.newPassword")}</Label>
             <Input
               type="password"
               autoComplete="new-password"
@@ -182,7 +186,7 @@ export function AdminAccountsPanel({
             />
           </div>
           <div className="space-y-1.5">
-            <Label>确认新密码</Label>
+            <Label>{t("admin.accounts.confirmPassword")}</Label>
             <Input
               type="password"
               autoComplete="new-password"
@@ -201,18 +205,18 @@ export function AdminAccountsPanel({
           }
           onClick={onChangePassword}
         >
-          保存新密码
+          {t("admin.accounts.saveNewPassword")}
         </Button>
         {isAdmin && (
           <div className="space-y-2 border-t border-border pt-3">
             <div>
-              <h3 className="text-xs font-medium uppercase text-muted-foreground">现有用户</h3>
+              <h3 className="text-xs font-medium uppercase text-muted-foreground">{t("admin.accounts.existingUsers")}</h3>
               <p className="mt-1 text-xs text-muted-foreground">
-                可为普通用户重置密码；admin/developer 密码仅可本人通过上方旧密码修改或开发者控制台修改。
+                {t("admin.accounts.existingUsersHint")}
               </p>
             </div>
             {users.length === 0 ? (
-              <EmptyLine text="暂无用户" />
+              <EmptyLine text={t("admin.accounts.emptyUsers")} />
             ) : (
               <div className="overflow-hidden rounded-lg border border-border text-xs">
                 {users.map((user) => {
@@ -240,7 +244,7 @@ export function AdminAccountsPanel({
                       </span>
                       {isAdminUser ? (
                         <div className="text-muted-foreground sm:col-span-2">
-                          特权账号密码仅可本人旧密码修改或开发者控制台修改
+                          {t("admin.accounts.privilegedPasswordHint")}
                         </div>
                       ) : (
                         <>
@@ -254,7 +258,7 @@ export function AdminAccountsPanel({
                                 [user.username]: e.target.value,
                               }))
                             }
-                            placeholder="新密码"
+                            placeholder={t("admin.accounts.newPassword")}
                           />
                           <Button
                             type="button"
@@ -263,7 +267,7 @@ export function AdminAccountsPanel({
                             disabled={!passwordValue || busy === busyKey}
                             onClick={() => onResetUserPassword(user.username)}
                           >
-                            重置
+                            {t("admin.accounts.reset")}
                           </Button>
                         </>
                       )}

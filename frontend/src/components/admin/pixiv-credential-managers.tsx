@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyLine } from "@/components/admin/admin-fields";
+import { useI18n } from "@/components/providers/locale-provider";
 import { cn } from "@/lib/utils";
 import type { PixivCookieSummary, PixivTokenSummary } from "@/lib/types";
 import { formatDate } from "./admin-format";
@@ -36,18 +37,19 @@ export function PixivTokenManager({
   onUpdateLabel: (tokenId: number) => void;
   onRevoke: (tokenId: number) => void;
 }) {
+  const { t } = useI18n();
   const activeTokens = tokens.filter((token) => token.is_active);
 
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-background/50 p-3">
       <div className="space-y-1.5">
-        <Label>使用已保存的 Pixiv Token</Label>
+        <Label>{t("admin.pixiv.savedTokenLabel")}</Label>
         <select
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
           value={selectedTokenId ?? ""}
           onChange={(event) => onSelect(event.target.value ? Number(event.target.value) : null)}
         >
-          <option value="">不使用保存项，改用上方临时 Token / 环境变量</option>
+          <option value="">{t("admin.pixiv.savedTokenNone")}</option>
           {activeTokens.map((token) => (
             <option key={token.id} value={token.id}>
               {pixivTokenDisplayName(token)}
@@ -59,7 +61,7 @@ export function PixivTokenManager({
         <Input
           value={label}
           onChange={(event) => onLabelChange(event.target.value)}
-          placeholder="备注，例如：主账号 / R18 可见 / 备用"
+          placeholder={t("admin.pixiv.tokenLabelPlaceholder")}
         />
         <Button
           type="button"
@@ -67,11 +69,11 @@ export function PixivTokenManager({
           disabled={!canSave || busy === "pixiv-token-save"}
           onClick={onSave}
         >
-          <Save className="h-4 w-4" /> 保存当前 Token
+          <Save className="h-4 w-4" /> {t("admin.pixiv.saveCurrentToken")}
         </Button>
       </div>
       {tokens.length === 0 ? (
-        <EmptyLine text="暂无已保存 Pixiv Token" />
+        <EmptyLine text={t("admin.pixiv.emptyTokens")} />
       ) : (
         <div className="max-h-64 space-y-2 overflow-auto">
           {tokens.map((token) => (
@@ -88,12 +90,12 @@ export function PixivTokenManager({
                   <div className="truncate font-mono" title={`${token.token_prefix}...${token.token_suffix}`}>
                     {token.token_prefix}...{token.token_suffix}
                   </div>
-                  <div className="truncate text-muted-foreground" title={pixivTokenAccountLine(token)}>
-                    {pixivTokenAccountLine(token)}
+                  <div className="truncate text-muted-foreground" title={pixivTokenAccountLine(token, t("admin.pixiv.noAccount"))}>
+                    {pixivTokenAccountLine(token, t("admin.pixiv.noAccount"))}
                   </div>
                 </div>
                 <span className={token.is_active ? "shrink-0 text-emerald-600 dark:text-emerald-400" : "shrink-0 text-muted-foreground"}>
-                  {token.is_active ? "active" : "revoked"}
+                  {token.is_active ? t("admin.tokens.active") : t("admin.tokens.revoked")}
                 </span>
               </div>
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto] xl:grid-cols-1">
@@ -101,7 +103,7 @@ export function PixivTokenManager({
                   className="h-8 text-xs"
                   value={drafts[token.id] ?? token.label ?? ""}
                   onChange={(event) => onDraftChange(token.id, event.target.value)}
-                  placeholder="备注"
+                  placeholder={t("admin.pixiv.labelPlaceholder")}
                   disabled={!token.is_active}
                 />
                 <Button
@@ -111,7 +113,7 @@ export function PixivTokenManager({
                   disabled={!token.is_active || busy === `pixiv-token-update-${token.id}`}
                   onClick={() => onUpdateLabel(token.id)}
                 >
-                  备注
+                  {t("admin.pixiv.updateLabel")}
                 </Button>
                 <Button
                   type="button"
@@ -120,12 +122,12 @@ export function PixivTokenManager({
                   disabled={!token.is_active || busy === `pixiv-token-revoke-${token.id}`}
                   onClick={() => onRevoke(token.id)}
                 >
-                  撤销
+                  {t("admin.tokens.revoke")}
                 </Button>
               </div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                <span>创建 {formatDate(token.created_at)}</span>
-                <span>使用 {formatDate(token.last_used_at)}</span>
+                <span>{t("admin.pixiv.createdAt", { time: formatDate(token.created_at) })}</span>
+                <span>{t("admin.pixiv.usedAt", { time: formatDate(token.last_used_at) })}</span>
                 {token.last_used_ip && <span className="font-mono">{token.last_used_ip}</span>}
               </div>
             </div>
@@ -163,18 +165,19 @@ export function PixivCookieManager({
   onUpdateLabel: (cookieId: number) => void;
   onRevoke: (cookieId: number) => void;
 }) {
+  const { t } = useI18n();
   const activeCookies = cookies.filter((cookie) => cookie.is_active);
 
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-background/50 p-3">
       <div className="space-y-1.5">
-        <Label>使用已保存的 Pixiv Cookie</Label>
+        <Label>{t("admin.pixiv.savedCookieLabel")}</Label>
         <select
           className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
           value={selectedCookieId ?? ""}
           onChange={(event) => onSelect(event.target.value ? Number(event.target.value) : null)}
         >
-          <option value="">不使用保存项，改用上方临时 Cookie</option>
+          <option value="">{t("admin.pixiv.savedCookieNone")}</option>
           {activeCookies.map((cookie) => (
             <option key={cookie.id} value={cookie.id}>
               {pixivCookieDisplayName(cookie)}
@@ -186,7 +189,7 @@ export function PixivCookieManager({
         <Input
           value={label}
           onChange={(event) => onLabelChange(event.target.value)}
-          placeholder="备注，例如：浏览器主会话 / 备用"
+          placeholder={t("admin.pixiv.cookieLabelPlaceholder")}
         />
         <Button
           type="button"
@@ -194,11 +197,11 @@ export function PixivCookieManager({
           disabled={!canSave || busy === "pixiv-cookie-save"}
           onClick={onSave}
         >
-          <Save className="h-4 w-4" /> 保存当前 Cookie
+          <Save className="h-4 w-4" /> {t("admin.pixiv.saveCurrentCookie")}
         </Button>
       </div>
       {cookies.length === 0 ? (
-        <EmptyLine text="暂无已保存 Pixiv Cookie" />
+        <EmptyLine text={t("admin.pixiv.emptyCookies")} />
       ) : (
         <div className="max-h-64 space-y-2 overflow-auto">
           {cookies.map((cookie) => (
@@ -215,12 +218,12 @@ export function PixivCookieManager({
                   <div className="truncate font-mono" title={`${cookie.cookie_prefix}...${cookie.cookie_suffix}`}>
                     {cookie.cookie_prefix}...{cookie.cookie_suffix}
                   </div>
-                  <div className="truncate text-muted-foreground" title={pixivCookieAccountLine(cookie)}>
-                    {pixivCookieAccountLine(cookie)}
+                  <div className="truncate text-muted-foreground" title={pixivCookieAccountLine(cookie, t("admin.pixiv.noAccount"))}>
+                    {pixivCookieAccountLine(cookie, t("admin.pixiv.noAccount"))}
                   </div>
                 </div>
                 <span className={cookie.is_active ? "shrink-0 text-emerald-600 dark:text-emerald-400" : "shrink-0 text-muted-foreground"}>
-                  {cookie.is_active ? "active" : "revoked"}
+                  {cookie.is_active ? t("admin.tokens.active") : t("admin.tokens.revoked")}
                 </span>
               </div>
               <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_auto_auto] xl:grid-cols-1">
@@ -228,7 +231,7 @@ export function PixivCookieManager({
                   className="h-8 text-xs"
                   value={drafts[cookie.id] ?? cookie.label ?? ""}
                   onChange={(event) => onDraftChange(cookie.id, event.target.value)}
-                  placeholder="备注"
+                  placeholder={t("admin.pixiv.labelPlaceholder")}
                   disabled={!cookie.is_active}
                 />
                 <Button
@@ -238,7 +241,7 @@ export function PixivCookieManager({
                   disabled={!cookie.is_active || busy === `pixiv-cookie-update-${cookie.id}`}
                   onClick={() => onUpdateLabel(cookie.id)}
                 >
-                  备注
+                  {t("admin.pixiv.updateLabel")}
                 </Button>
                 <Button
                   type="button"
@@ -247,12 +250,12 @@ export function PixivCookieManager({
                   disabled={!cookie.is_active || busy === `pixiv-cookie-revoke-${cookie.id}`}
                   onClick={() => onRevoke(cookie.id)}
                 >
-                  撤销
+                  {t("admin.tokens.revoke")}
                 </Button>
               </div>
               <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-muted-foreground">
-                <span>创建 {formatDate(cookie.created_at)}</span>
-                <span>使用 {formatDate(cookie.last_used_at)}</span>
+                <span>{t("admin.pixiv.createdAt", { time: formatDate(cookie.created_at) })}</span>
+                <span>{t("admin.pixiv.usedAt", { time: formatDate(cookie.last_used_at) })}</span>
                 {cookie.last_used_ip && <span className="font-mono">{cookie.last_used_ip}</span>}
               </div>
             </div>
@@ -270,11 +273,11 @@ function pixivTokenDisplayName(token: PixivTokenSummary): string {
   return label ? `${label} · ${account} · ${suffix}` : `${account} · ${suffix}`;
 }
 
-function pixivTokenAccountLine(token: PixivTokenSummary): string {
+function pixivTokenAccountLine(token: PixivTokenSummary, fallback: string): string {
   const parts = [token.label, token.pixiv_name, token.pixiv_account, token.pixiv_user_id ? `UID ${token.pixiv_user_id}` : ""]
     .map((item) => item?.trim())
     .filter(Boolean);
-  return parts.length ? parts.join(" · ") : "未记录 Pixiv 账号信息";
+  return parts.length ? parts.join(" · ") : fallback;
 }
 
 function pixivCookieDisplayName(cookie: PixivCookieSummary): string {
@@ -284,9 +287,9 @@ function pixivCookieDisplayName(cookie: PixivCookieSummary): string {
   return label ? `${label} · ${account} · ${suffix}` : `${account} · ${suffix}`;
 }
 
-function pixivCookieAccountLine(cookie: PixivCookieSummary): string {
+function pixivCookieAccountLine(cookie: PixivCookieSummary, fallback: string): string {
   const parts = [cookie.label, cookie.pixiv_name, cookie.pixiv_account, cookie.pixiv_user_id ? `UID ${cookie.pixiv_user_id}` : ""]
     .map((item) => item?.trim())
     .filter(Boolean);
-  return parts.length ? parts.join(" · ") : "未记录 Pixiv 账号信息";
+  return parts.length ? parts.join(" · ") : fallback;
 }

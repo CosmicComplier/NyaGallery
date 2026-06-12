@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { LimitGrid, NumberField, ToggleField } from "@/components/admin/admin-fields";
 import { AccessLogRow } from "@/components/admin/admin-operation-rows";
 import { bytesToMiB, formatDate, limitValue } from "@/components/admin/admin-format";
+import { useI18n } from "@/components/providers/locale-provider";
 import type { AccessLogItem, Role, SecurityLimitOverride, SecuritySettings, UserSummary } from "@/lib/types";
 
 const MIB = 1024 * 1024;
@@ -48,25 +49,27 @@ export function AdminSecurityPanel({
   onPatchRoleLimit,
   onPatchUserLimit,
 }: AdminSecurityPanelProps) {
+  const { t } = useI18n();
+
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="flex items-center gap-2 text-sm font-medium">
-            <Shield className="h-4 w-4" /> 安全与访问控制
+            <Shield className="h-4 w-4" /> {t("admin.security.title")}
           </h2>
           {securityDraft && (
             <p className="mt-1 text-xs text-muted-foreground">
-              最近更新：{formatDate(securityDraft.updated_at)} · {securityDraft.updated_by_username || "系统默认"}
+              {t("admin.security.lastUpdated", { time: formatDate(securityDraft.updated_at), username: securityDraft.updated_by_username || t("admin.security.systemDefault") })}
             </p>
           )}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" disabled={busy === "security-refresh"} onClick={onRefreshSecurity}>
-            <RefreshCw className="h-4 w-4" /> 刷新
+            <RefreshCw className="h-4 w-4" /> {t("common.refresh")}
           </Button>
           <Button size="sm" disabled={!securityDraft || busy === "security-save"} onClick={onSaveSecurity}>
-            <Save className="h-4 w-4" /> 保存
+            <Save className="h-4 w-4" /> {t("common.save")}
           </Button>
         </div>
       </div>
@@ -74,21 +77,21 @@ export function AdminSecurityPanel({
       {securityDraft && (
         <>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <ToggleField label="启用安全策略" checked={securityDraft.enabled} onChange={(value) => onPatchSecurity({ enabled: value })} />
-            <ToggleField label="记录访问日志" checked={securityDraft.access_log_enabled} onChange={(value) => onPatchSecurity({ access_log_enabled: value })} />
-            <NumberField label="日志保留条数" value={securityDraft.access_log_retention} onChange={(value) => onPatchSecurity({ access_log_retention: value })} />
-            <NumberField label="上传上限" value={bytesToMiB(securityDraft.max_upload_bytes)} suffix="MiB" onChange={(value) => onPatchSecurity({ max_upload_bytes: value * MIB })} />
+            <ToggleField label={t("admin.security.enablePolicy")} checked={securityDraft.enabled} onChange={(value) => onPatchSecurity({ enabled: value })} />
+            <ToggleField label={t("admin.security.accessLogEnabled")} checked={securityDraft.access_log_enabled} onChange={(value) => onPatchSecurity({ access_log_enabled: value })} />
+            <NumberField label={t("admin.security.accessLogRetention")} value={securityDraft.access_log_retention} onChange={(value) => onPatchSecurity({ access_log_retention: value })} />
+            <NumberField label={t("admin.security.maxUpload")} value={bytesToMiB(securityDraft.max_upload_bytes)} suffix="MiB" onChange={(value) => onPatchSecurity({ max_upload_bytes: value * MIB })} />
           </div>
 
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <NumberField label="全局并发" value={securityDraft.max_global_concurrency} onChange={(value) => onPatchSecurity({ max_global_concurrency: value })} />
-            <NumberField label="单 IP 并发" value={securityDraft.max_ip_concurrency} onChange={(value) => onPatchSecurity({ max_ip_concurrency: value })} />
-            <NumberField label="单 IP 请求/分钟" value={securityDraft.ip_requests_per_minute} onChange={(value) => onPatchSecurity({ ip_requests_per_minute: value })} />
-            <NumberField label="单 IP 流量/分钟" value={bytesToMiB(securityDraft.ip_bytes_per_minute)} suffix="MiB" onChange={(value) => onPatchSecurity({ ip_bytes_per_minute: value * MIB })} />
+            <NumberField label={t("admin.security.globalConcurrency")} value={securityDraft.max_global_concurrency} onChange={(value) => onPatchSecurity({ max_global_concurrency: value })} />
+            <NumberField label={t("admin.security.ipConcurrency")} value={securityDraft.max_ip_concurrency} onChange={(value) => onPatchSecurity({ max_ip_concurrency: value })} />
+            <NumberField label={t("admin.security.ipRequests")} value={securityDraft.ip_requests_per_minute} onChange={(value) => onPatchSecurity({ ip_requests_per_minute: value })} />
+            <NumberField label={t("admin.security.ipTraffic")} value={bytesToMiB(securityDraft.ip_bytes_per_minute)} suffix="MiB" onChange={(value) => onPatchSecurity({ ip_bytes_per_minute: value * MIB })} />
           </div>
 
           <LimitGrid
-            title="默认用户限额"
+            title={t("admin.security.defaultUserLimits")}
             concurrency={securityDraft.max_user_concurrency}
             requests={securityDraft.user_requests_per_minute}
             bytesMiB={bytesToMiB(securityDraft.user_bytes_per_minute)}
@@ -99,7 +102,7 @@ export function AdminSecurityPanel({
 
           <div className="grid gap-3 lg:grid-cols-[220px_1fr]">
             <label className="space-y-1.5">
-              <span className="text-xs text-muted-foreground">角色组覆盖</span>
+              <span className="text-xs text-muted-foreground">{t("admin.security.roleOverride")}</span>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
                 value={roleLimitTarget}
@@ -109,7 +112,7 @@ export function AdminSecurityPanel({
               </select>
             </label>
             <LimitGrid
-              title="0 表示继承默认用户限额"
+              title={t("admin.security.roleOverrideHint")}
               concurrency={limitValue(securityDraft.role_limits, roleLimitTarget, "max_user_concurrency")}
               requests={limitValue(securityDraft.role_limits, roleLimitTarget, "user_requests_per_minute")}
               bytesMiB={bytesToMiB(limitValue(securityDraft.role_limits, roleLimitTarget, "user_bytes_per_minute"))}
@@ -121,7 +124,7 @@ export function AdminSecurityPanel({
 
           <div className="grid gap-3 lg:grid-cols-[220px_1fr]">
             <label className="space-y-1.5">
-              <span className="text-xs text-muted-foreground">用户覆盖</span>
+              <span className="text-xs text-muted-foreground">{t("admin.security.userOverride")}</span>
               <select
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm focus-ring"
                 value={userLimitTarget}
@@ -131,7 +134,7 @@ export function AdminSecurityPanel({
               </select>
             </label>
             <LimitGrid
-              title="优先级高于角色组覆盖，0 表示继承"
+              title={t("admin.security.userOverrideHint")}
               concurrency={limitValue(securityDraft.user_limits, userLimitTarget, "max_user_concurrency")}
               requests={limitValue(securityDraft.user_limits, userLimitTarget, "user_requests_per_minute")}
               bytesMiB={bytesToMiB(limitValue(securityDraft.user_limits, userLimitTarget, "user_bytes_per_minute"))}
@@ -146,7 +149,7 @@ export function AdminSecurityPanel({
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h3 className="flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground">
-            <Network className="h-3.5 w-3.5" /> 访问日志
+            <Network className="h-3.5 w-3.5" /> {t("admin.security.accessLogs")}
           </h3>
           <div className="flex min-w-0 flex-1 justify-end gap-2 sm:max-w-md">
             <div className="relative min-w-0 flex-1">
@@ -154,18 +157,18 @@ export function AdminSecurityPanel({
               <Input
                 value={accessLogFilter}
                 onChange={(e) => onAccessLogFilterChange(e.target.value)}
-                placeholder="过滤 IP / 用户 / 路径 / 拒绝原因"
+                placeholder={t("admin.security.accessLogPlaceholder")}
                 className="pl-8"
               />
             </div>
             <Button variant="outline" size="sm" onClick={onRefreshAccessLogs}>
-              <RefreshCw className="h-4 w-4" /> 查询
+              <RefreshCw className="h-4 w-4" /> {t("admin.security.query")}
             </Button>
           </div>
         </div>
         <div className="max-h-96 overflow-auto rounded-lg border border-border">
           {accessLogs.map((log) => <AccessLogRow key={log.id} log={log} />)}
-          {accessLogs.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">暂无访问日志</div>}
+          {accessLogs.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">{t("admin.security.emptyAccessLogs")}</div>}
         </div>
       </div>
     </section>

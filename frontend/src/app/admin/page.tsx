@@ -31,7 +31,6 @@ import { NyaApi } from "@/lib/api";
 import {
   canAccessAdminSection,
   getAdminSectionHref,
-  getAdminSectionLabel,
   getAdminSectionsForRole,
   getVisibleAdminSection,
   normalizeAdminSection,
@@ -51,17 +50,6 @@ import type { PixivAuthMode, Role } from "@/lib/types";
 
 type PixivMode = "pid" | "user";
 type PixivSourceMode = "artist_works" | "bookmarks" | "following" | "search_tag" | "ranking";
-
-const ADMIN_SECTION_DESCRIPTIONS: Record<AdminSection, string> = {
-  dashboard: "按角色汇总当前可用的管理入口。",
-  pixiv: "Pixiv 同步、OAuth/Token/Cookie 凭据和抓取日志。",
-  operations: "上传历史、转码队列和最近上传日志。",
-  security: "安全开关、限流策略、访问日志与角色/用户额度。",
-  tags: "标签别名、标签统计筛选与汇总导出。",
-  maintenance: "数据库重建、媒体缓存生成和云储存配置。",
-  accounts: "当前账号密码、API Token，以及管理员用户维护。",
-  developer: "后端配置编辑、节点状态和开发者白名单维护动作。",
-};
 
 const ADMIN_SECTION_ICONS: Record<AdminSection, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -88,8 +76,8 @@ export default function AdminPage() {
   const requestedSection = normalizeAdminSection(rawSection);
   const activeSection = getVisibleAdminSection(me?.role, requestedSection);
   const allowedSections = getAdminSectionsForRole(me?.role);
-  const sectionLabel = activeSection ? getAdminSectionLabel(activeSection) : t("nav.admin");
-  const sectionDescription = activeSection ? ADMIN_SECTION_DESCRIPTIONS[activeSection] : "";
+  const sectionLabel = activeSection ? t(`admin.sections.${activeSection}`) : t("nav.admin");
+  const sectionDescription = activeSection ? t(`admin.sections.descriptions.${activeSection}`) : "";
 
   const [pid, setPid] = useState("");
   const [pixivUid, setPixivUid] = useState("");
@@ -326,8 +314,8 @@ export default function AdminPage() {
   if (!ready) {
     return (
       <div className="container max-w-md py-16 text-center">
-        <h1 className="mb-2 text-lg font-semibold">正在验证权限</h1>
-        <p className="text-sm text-muted-foreground">请稍候。</p>
+        <h1 className="mb-2 text-lg font-semibold">{t("admin.page.checkingAuth")}</h1>
+        <p className="text-sm text-muted-foreground">{t("admin.page.checkingAuthDescription")}</p>
       </div>
     );
   }
@@ -335,10 +323,10 @@ export default function AdminPage() {
   if (!token) {
     return (
       <div className="container max-w-md py-16 text-center">
-        <h1 className="mb-2 text-lg font-semibold">需要登录</h1>
-        <p className="text-sm text-muted-foreground">上传历史和管理操作需要账号权限。</p>
+        <h1 className="mb-2 text-lg font-semibold">{t("common.loginRequired")}</h1>
+        <p className="text-sm text-muted-foreground">{t("admin.page.loginDescription")}</p>
         <Button className="mt-4" onClick={() => router.push("/login")}>
-          去登录
+          {t("auth.goLogin")}
         </Button>
       </div>
     );
@@ -348,7 +336,7 @@ export default function AdminPage() {
     await run(
       `transcode-${assetKey}`,
       () => NyaApi.startTranscode(assetKey),
-      (result) => (result.status === "already_running" ? "已有转码任务在运行" : "已加入转码队列")
+      (result) => (result.status === "already_running" ? t("admin.page.transcodeAlreadyRunning") : t("admin.page.transcodeQueued"))
     );
     await refreshOperations(false);
   }
@@ -356,11 +344,11 @@ export default function AdminPage() {
   async function syncPixiv() {
     const auth_mode = pixivAuthMode;
     if (auth_mode === "local_import") {
-      toast.error("本地导入入口会在后续接入文件导入器；当前请使用上传页或 Token/Cookie 抓取。");
+      toast.error(t("admin.page.localImportSoon"));
       return;
     }
     if (auth_mode === "cookie" && !pixivSavedCookieId && !pixivCookie.trim()) {
-      toast.error("Cookie 抓取需要选择已保存 Cookie 或填入临时浏览器 Cookie。");
+      toast.error(t("admin.page.cookieRequired"));
       return;
     }
     if (
@@ -369,7 +357,7 @@ export default function AdminPage() {
       !pixivRefreshToken.trim() &&
       !pixivConfig?.has_env_refresh_token
     ) {
-      toast.error("未检测到 PIXIV_REFRESH_TOKEN，请填入 OAuth/Token，或切换 Cookie 临时抓取。");
+      toast.error(t("admin.page.tokenRequired"));
       return;
     }
     const options = {
@@ -396,10 +384,10 @@ export default function AdminPage() {
         ? NyaApi.syncPixivPid(pid.trim(), options)
         : NyaApi.syncPixivUser(pixivUid.trim(), options),
       (response) => pixivDryRun
-        ? `预检完成 · ${response.preview?.length ?? 0} 个作品`
+        ? t("admin.page.dryRunDone", { count: response.preview?.length ?? 0 })
         : response.status === "queued"
-          ? `已加入后台抓取 · ${response.sync_job_id ?? "queued"}`
-        : `同步完成 · ${response.sync.length} 个文件 · 转码队列 ${response.jobs?.length ?? 0}`
+          ? t("admin.page.queued", { id: response.sync_job_id ?? "queued" })
+        : t("admin.page.syncDone", { files: response.sync.length, jobs: response.jobs?.length ?? 0 })
     );
     if (result) {
       setRebuildResult(JSON.stringify(result, null, 2));
@@ -416,7 +404,7 @@ export default function AdminPage() {
           <Database className="h-5 w-5" />
         </span>
         <div>
-          <h1 className="text-xl font-semibold">管理 / {sectionLabel}</h1>
+          <h1 className="text-xl font-semibold">{t("admin.page.title", { section: sectionLabel })}</h1>
           <p className="text-xs text-muted-foreground">
             {sectionDescription}
           </p>
@@ -467,7 +455,7 @@ export default function AdminPage() {
             onExchangePixivOAuth={exchangePixivOAuth}
             onCopyPixivStartUrl={(url) => {
               void navigator.clipboard.writeText(url);
-              toast.success("已复制 start URL");
+              toast.success(t("admin.page.copiedStartUrl"));
             }}
             pixivCookie={pixivCookie}
             onPixivCookieChange={setPixivCookie}
@@ -515,7 +503,7 @@ export default function AdminPage() {
             pixivLogs={pixivLogs}
             pixivPollingMode={pixivPollingMode}
             pixivLastUpdatedAt={pixivLastUpdatedAt}
-            onRefreshPixivLogs={() => run("pixiv-log-refresh", () => refreshPixivLogs(), () => "Pixiv 日志已刷新")}
+            onRefreshPixivLogs={() => run("pixiv-log-refresh", () => refreshPixivLogs(), () => t("admin.page.pixivLogsRefreshed"))}
           />
         )}
 
@@ -530,14 +518,14 @@ export default function AdminPage() {
             transcodeJobs={transcodeJobs}
             uploadHistory={uploadHistory}
             uploadLogs={uploadLogs}
-            onRefresh={() => run("ops-refresh", () => refreshOperations(), () => "已刷新上传与转码")}
+            onRefresh={() => run("ops-refresh", () => refreshOperations(), () => t("admin.page.opsRefreshed"))}
             onStartTranscode={startTranscode}
           />
         )}
 
       {activeSection === "dashboard" && !isAdmin && (
         <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
-          你的账号角色是 <span className="font-mono">{me?.role ?? "unknown"}</span>，管理操作已隐藏。
+          {t("admin.dashboard.hiddenForRole", { role: me?.role ?? "unknown" })}
         </div>
       )}
 
@@ -555,9 +543,9 @@ export default function AdminPage() {
             onRoleLimitTargetChange={setRoleLimitTarget}
             userLimitTarget={userLimitTarget}
             onUserLimitTargetChange={setUserLimitTarget}
-            onRefreshSecurity={() => run("security-refresh", loadSecurity, () => "安全数据已刷新")}
+            onRefreshSecurity={() => run("security-refresh", loadSecurity, () => t("admin.page.securityRefreshed"))}
             onSaveSecurity={saveSecurity}
-            onRefreshAccessLogs={() => run("access-log-refresh", loadSecurity, () => "访问日志已刷新")}
+            onRefreshAccessLogs={() => run("access-log-refresh", loadSecurity, () => t("admin.page.accessLogsRefreshed"))}
             onPatchSecurity={patchSecurity}
             onPatchRoleLimit={patchRoleLimit}
             onPatchUserLimit={patchUserLimit}
@@ -572,19 +560,19 @@ export default function AdminPage() {
             configResponse={configResponse}
             configDraft={configDraft}
             onConfigDraftChange={setConfigDraft}
-            onRefreshConfig={() => run("developer-config-refresh", loadDeveloperConfig, () => "云储存配置已刷新")}
+            onRefreshConfig={() => run("developer-config-refresh", loadDeveloperConfig, () => t("admin.page.cloudStorageRefreshed"))}
             onSaveConfig={saveDeveloperConfig}
             onRebuild={() =>
               run("rebuild", () => NyaApi.rebuild(false), (r) =>
-                `重建完成 · 资产 ${r.assets} · 标签 ${r.tags} · 重复 ${r.duplicates}`
+                t("admin.page.rebuildDone", { assets: r.assets, tags: r.tags, duplicates: r.duplicates })
               ).then((r) => r && setRebuildResult(JSON.stringify(r, null, 2)))
             }
             onRebuildWithCache={() =>
               run("rebuild-cache", () => NyaApi.rebuild(true), (r) =>
-                `重建并刷新缓存完成 · 资产 ${r.assets}`
+                t("admin.page.rebuildCacheDone", { assets: r.assets })
               ).then((r) => r && setRebuildResult(JSON.stringify(r, null, 2)))
             }
-            onGenerateMedia={() => run("media", () => NyaApi.generateMedia(), () => "媒体缓存已生成")}
+            onGenerateMedia={() => run("media", () => NyaApi.generateMedia(), () => t("admin.page.mediaGenerated"))}
           />
           )}
 
@@ -597,7 +585,7 @@ export default function AdminPage() {
             aliasDrafts={aliasDrafts}
             onAliasDraftsChange={setAliasDrafts}
             summaryPath={summaryPath}
-            onRefreshTags={() => run("tag-refresh", loadTags, () => "标签已刷新")}
+            onRefreshTags={() => run("tag-refresh", loadTags, () => t("admin.page.tagsRefreshed"))}
             onExportTagSummary={exportTagSummary}
             onSaveAliases={saveAliases}
           />
@@ -609,10 +597,10 @@ export default function AdminPage() {
             configResponse={configResponse}
             configDraft={configDraft}
             onConfigDraftChange={setConfigDraft}
-            onRefreshConfig={() => run("developer-config-refresh", loadDeveloperConfig, () => "配置已刷新")}
+            onRefreshConfig={() => run("developer-config-refresh", loadDeveloperConfig, () => t("admin.page.configRefreshed"))}
             onSaveConfig={saveDeveloperConfig}
             consoleStatus={consoleStatus}
-            onRefreshConsole={() => run("developer-console-refresh", loadDeveloperConsole, () => "操作台状态已刷新")}
+            onRefreshConsole={() => run("developer-console-refresh", loadDeveloperConsole, () => t("admin.page.consoleRefreshed"))}
             users={users}
             passwordDraft={consolePasswordDraft}
             onPasswordDraftChange={setConsolePasswordDraft}
@@ -657,14 +645,15 @@ export default function AdminPage() {
 }
 
 function AdminDashboard({ role, sections }: { role: Role; sections: AdminSection[] }) {
+  const { t } = useI18n();
   const entries = sections.filter((section) => section !== "dashboard");
 
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
       <div>
-        <h2 className="text-sm font-medium">管理概览</h2>
+        <h2 className="text-sm font-medium">{t("admin.dashboard.title")}</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          当前角色为 <span className="font-mono">{role}</span>，侧边栏和本页入口只显示该角色可访问的模块。
+          {t("admin.dashboard.currentRole", { role })}
         </p>
       </div>
 
@@ -681,9 +670,9 @@ function AdminDashboard({ role, sections }: { role: Role; sections: AdminSection
                 <Icon className="h-4 w-4" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block font-medium">{getAdminSectionLabel(section)}</span>
+                <span className="block font-medium">{t(`admin.sections.${section}`)}</span>
                 <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                  {ADMIN_SECTION_DESCRIPTIONS[section]}
+                  {t(`admin.sections.descriptions.${section}`)}
                 </span>
               </span>
               <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />

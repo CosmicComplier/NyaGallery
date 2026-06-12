@@ -5,14 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Check, Copy, Download, ExternalLink, Tags as TagsIcon, Trash2, AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAsset, useAssetSiblings } from "@/lib/hooks";
-import { downloadOriginalAsset, fileUrl, NyaApi, readToken } from "@/lib/api";
+import { ApiError, downloadOriginalAsset, fileUrl, NyaApi, readToken } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/components/providers/auth-provider";
 import { useToast } from "@/components/providers/toast-provider";
-import { cn, isHiddenTag, sourceTagQuery, tagCategory, tagLabel } from "@/lib/utils";
+import { cn, isHiddenTag, sourceTagLabel, sourceTagQuery, sourceTagSecondaryLabel, tagCategory, tagLabel } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import type { Asset } from "@/lib/types";
 import { useI18n } from "@/components/providers/locale-provider";
@@ -25,7 +25,7 @@ export default function AssetDetailPage() {
   const { data: siblingsData } = useAssetSiblings(assetKey);
   const { token, me } = useAuth();
   const toast = useToast();
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [draftTags, setDraftTags] = useState("");
@@ -121,9 +121,9 @@ export default function AssetDetailPage() {
   if (error || !asset) {
     return (
       <div className="container flex flex-col items-center gap-4 py-20 text-center">
-        <p className="text-sm text-destructive">{error?.message ?? "未找到"}</p>
+        <p className="text-sm text-destructive">{error?.message ?? t("common.notFound")}</p>
         <Button onClick={() => router.back()} variant="outline" size="sm">
-          返回
+          {t("common.back")}
         </Button>
       </div>
     );
@@ -142,10 +142,10 @@ export default function AssetDetailPage() {
       const updated = await NyaApi.updateAssetTags(asset.asset_key, next);
       qc.setQueryData(["asset", asset.asset_key], updated);
       qc.invalidateQueries({ queryKey: ["search"] });
-      toast.success("已保存");
+      toast.success(t("common.saved"));
       setEditing(false);
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "保存失败");
+      toast.error(e instanceof Error ? e.message : t("pages.asset.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -157,7 +157,9 @@ export default function AssetDetailPage() {
     try {
       await downloadOriginalAsset(activeAsset);
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "下载失败");
+      toast.error(e instanceof ApiError && e.status === 401
+        ? t("pages.asset.downloadLoginRequired")
+        : e instanceof Error ? e.message : t("pages.asset.downloadFailed"));
     } finally {
       setDownloading(false);
     }
@@ -165,15 +167,15 @@ export default function AssetDetailPage() {
 
   async function requestDelete() {
     if (!asset) return;
-    if (!confirm("确认将此资源标记为待清理？")) return;
+    if (!confirm(t("pages.asset.deleteConfirm"))) return;
     setDeleting(true);
     try {
       const updated = await NyaApi.deleteAsset(asset.asset_key);
       qc.setQueryData(["asset", asset.asset_key], updated);
       qc.invalidateQueries({ queryKey: ["search"] });
-      toast.success("已标记为待清理");
+      toast.success(t("pages.asset.deleteQueued"));
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "删除失败");
+      toast.error(e instanceof Error ? e.message : t("pages.asset.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -181,15 +183,15 @@ export default function AssetDetailPage() {
 
   async function purgeAsset() {
     if (!asset) return;
-    if (!confirm("⚠️ 彻底清理：文件将被永久删除，不可恢复。确认？")) return;
+    if (!confirm(t("pages.asset.purgeConfirm"))) return;
     setDeleting(true);
     try {
       await NyaApi.cleanupAsset(asset.asset_key);
       qc.invalidateQueries({ queryKey: ["search"] });
-      toast.success("已彻底清理");
+      toast.success(t("pages.asset.purgeDone"));
       router.push("/");
     } catch (e: unknown) {
-      toast.error(e instanceof Error ? e.message : "清理失败");
+      toast.error(e instanceof Error ? e.message : t("pages.asset.purgeFailed"));
     } finally {
       setDeleting(false);
     }
@@ -207,12 +209,12 @@ export default function AssetDetailPage() {
           onClick={() => router.back()}
           className="mb-3"
         >
-          <ArrowLeft className="h-4 w-4" /> 返回
+          <ArrowLeft className="h-4 w-4" /> {t("common.back")}
         </Button>
         <div className="space-y-4">
           {hasMultiplePages && (
             <div className="rounded-lg border border-border bg-muted/25 px-3 py-2 text-xs text-muted-foreground">
-              同一作品共 {pages.length} 张。点击右侧页码目录可以跳转；右侧资源链接会跟随当前浏览页。
+              {t("pages.asset.multiPageHint", { count: pages.length })}
             </div>
           )}
           {pages.map((page, index) => (
@@ -233,7 +235,7 @@ export default function AssetDetailPage() {
           </h1>
           {asset.artist && (
             <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              by <span className="text-foreground">{asset.artist}</span>
+              <span>{t("pages.asset.byArtist", { artist: asset.artist })}</span>
               {artistUrl && (
                 <a
                   href={artistUrl}
@@ -241,7 +243,7 @@ export default function AssetDetailPage() {
                   rel="noreferrer"
                   className="text-xs text-primary underline-offset-4 hover:underline"
                 >
-                  [主页]
+                  [{t("pages.asset.artistHome")}]
                 </a>
               )}
             </p>
@@ -267,12 +269,12 @@ export default function AssetDetailPage() {
             )}
             {asset.duplicate_of && (
               <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-amber-500">
-                重复于 {asset.duplicate_of}
+                {t("pages.asset.duplicateOf", { assetKey: asset.duplicate_of })}
               </span>
             )}
             {asset.deletion_status && (
               <span className="rounded-md border border-destructive/30 bg-destructive/10 px-2 py-0.5 text-destructive">
-                {asset.deletion_status === "pending_cleanup" ? "待清理" : asset.deletion_status}
+                {asset.deletion_status === "pending_cleanup" ? t("pages.asset.pendingCleanup") : asset.deletion_status}
                 {asset.deleted_by_username && ` · by ${asset.deleted_by_username}`}
               </span>
             )}
@@ -281,7 +283,7 @@ export default function AssetDetailPage() {
 
         {hasMultiplePages && (
           <section className="space-y-2 rounded-lg border border-border bg-muted/25 p-3">
-            <h2 className="text-sm font-medium">页目录</h2>
+            <h2 className="text-sm font-medium">{t("pages.asset.pageDirectory")}</h2>
             <div className="grid max-h-72 grid-cols-4 gap-1 overflow-auto pr-1">
               {pages.map((page, index) => (
                 <a
@@ -304,19 +306,19 @@ export default function AssetDetailPage() {
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={downloadOriginal} disabled={downloading}>
             {downloading ? <Spinner className="h-4 w-4" /> : <Download className="h-4 w-4" />}
-            原图
+            {t("pages.asset.original")}
           </Button>
           {asset.original_url && (
             <Button asChild variant="outline" size="sm">
               <a href={asset.original_url} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" /> 来源
+                <ExternalLink className="h-4 w-4" /> {t("pages.asset.source")}
               </a>
             </Button>
           )}
           {artworkUrl && (
             <Button asChild variant="outline" size="sm">
               <a href={artworkUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" /> 作品页
+                <ExternalLink className="h-4 w-4" /> {t("pages.asset.artworkPage")}
               </a>
             </Button>
           )}
@@ -328,7 +330,7 @@ export default function AssetDetailPage() {
               disabled={deleting}
             >
               {deleting ? <Spinner className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-              删除
+              {t("pages.asset.delete")}
             </Button>
           )}
           {canDelete && asset.deletion_status === "pending_cleanup" && (
@@ -339,14 +341,14 @@ export default function AssetDetailPage() {
               disabled={deleting}
             >
               {deleting ? <Spinner className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
-              彻底清理
+              {t("pages.asset.purge")}
             </Button>
           )}
         </div>
 
         {asset.description && (
           <section className="space-y-2 rounded-lg border border-border bg-muted/25 p-3">
-            <h2 className="text-sm font-medium">作品简介</h2>
+            <h2 className="text-sm font-medium">{t("pages.asset.description")}</h2>
             <p className="whitespace-pre-wrap break-words text-xs leading-5 text-muted-foreground">
               {asset.description}
             </p>
@@ -355,10 +357,10 @@ export default function AssetDetailPage() {
 
         <section className="space-y-2">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium">标签</h2>
+            <h2 className="text-sm font-medium">{t("pages.asset.tags")}</h2>
             {token && !editing && (
               <Button variant="ghost" size="sm" onClick={startEdit}>
-                <TagsIcon className="h-3.5 w-3.5" /> 编辑
+                <TagsIcon className="h-3.5 w-3.5" /> {t("pages.asset.edit")}
               </Button>
             )}
           </div>
@@ -373,11 +375,11 @@ export default function AssetDetailPage() {
                 className="w-full rounded-md border border-input bg-transparent p-2 font-mono text-xs focus-ring"
               />
               <p className="text-[11px] text-muted-foreground">
-                空格分隔，使用 canonical 名（例如 <code>character:misaka_mikoto</code>），未在标签库中注册的会被拒绝。
+                {t("pages.asset.editTagsHint")}
               </p>
               <div className="flex gap-2">
                 <Button size="sm" onClick={saveTags} disabled={saving}>
-                  {saving ? <Spinner className="h-3.5 w-3.5" /> : null} 保存
+                  {saving ? <Spinner className="h-3.5 w-3.5" /> : null} {t("common.save")}
                 </Button>
                 <Button
                   size="sm"
@@ -385,14 +387,14 @@ export default function AssetDetailPage() {
                   onClick={() => setEditing(false)}
                   disabled={saving}
                 >
-                  取消
+                  {t("common.cancel")}
                 </Button>
               </div>
             </div>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {visibleTags.length === 0 && (
-                <span className="text-xs text-muted-foreground">无标签</span>
+                <span className="text-xs text-muted-foreground">{t("pages.asset.untagged")}</span>
               )}
               {visibleTags.map((tag) => (
                 <Link
@@ -412,19 +414,24 @@ export default function AssetDetailPage() {
 
         {asset.pixiv_tags && asset.pixiv_tags.length > 0 && (
           <section>
-            <h2 className="mb-2 text-sm font-medium">来源标签</h2>
+            <h2 className="mb-2 text-sm font-medium">{t("pages.asset.sourceTags")}</h2>
             <div className="flex flex-wrap gap-1.5">
-              {(asset.pixiv_tag_details?.length ? asset.pixiv_tag_details : asset.pixiv_tags.map((tag) => ({ name: tag, translated_name: null, source_tag: sourceTagQuery(tag) }))).map((tag) => (
-                <Link
-                  key={tag.name}
-                  href={`/?q=${encodeURIComponent(tag.source_tag || sourceTagQuery(tag.name, tag.translated_name))}`}
-                  title={tag.source_tag || sourceTagQuery(tag.name, tag.translated_name)}
-                  className="rounded-full border border-dashed border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-600 transition-colors hover:border-cyan-500/60 hover:bg-cyan-500/15 dark:text-cyan-400"
-                >
-                  {tag.name}
-                  {tag.translated_name && <span className="ml-1 opacity-70">/ {tag.translated_name}</span>}
-                </Link>
-              ))}
+              {(asset.pixiv_tag_details?.length ? asset.pixiv_tag_details : asset.pixiv_tags.map((tag) => ({ name: tag, translated_name: null, source_tag: sourceTagQuery(tag) }))).map((tag) => {
+                const query = tag.source_tag || sourceTagQuery(tag.name, tag.translated_name);
+                const label = sourceTagLabel(tag.name, tag.translated_name, locale);
+                const secondary = sourceTagSecondaryLabel(tag.name, tag.translated_name, locale);
+                return (
+                  <Link
+                    key={tag.name}
+                    href={`/?q=${encodeURIComponent(query)}`}
+                    title={query}
+                    className="rounded-full border border-dashed border-cyan-500/30 bg-cyan-500/10 px-2 py-0.5 text-[11px] text-cyan-600 transition-colors hover:border-cyan-500/60 hover:bg-cyan-500/15 dark:text-cyan-400"
+                  >
+                    {label}
+                    {secondary && <span className="ml-1 opacity-70">/ {secondary}</span>}
+                  </Link>
+                );
+              })}
             </div>
           </section>
         )}
@@ -450,7 +457,7 @@ export default function AssetDetailPage() {
         </section>
 
         <Button variant="ghost" size="sm" onClick={() => refetch()}>
-          刷新
+          {t("common.refresh")}
         </Button>
       </aside>
     </div>
@@ -528,32 +535,33 @@ function ApiLinksSection({
   asset: Asset;
   pageLabel?: string;
 }) {
+  const { t } = useI18n();
   const assetKey = asset.asset_key;
   const links = useMemo<ApiLink[]>(() => {
     const items: ApiLink[] = [
       {
-        label: "JSON 详情",
-        hint: "GET • application/json",
+        label: t("pages.asset.apiJson"),
+        hint: t("pages.asset.apiJsonHint"),
         href: `/api/assets/${encodeURIComponent(assetKey)}`,
       },
       {
-        label: "原图",
-        hint: `GET • 流式原始字节${asset.original_filename ? ` • ${asset.original_filename}` : ""}`,
+        label: t("pages.asset.original"),
+        hint: t("pages.asset.apiOriginalHint", { filename: asset.original_filename ? ` • ${asset.original_filename}` : "" }),
         href: fileUrl.original(assetKey),
         size: asset.file_size ?? null,
         filename: asset.original_filename || assetKey,
         needsAuth: true,
       },
       {
-        label: "压缩预览（AVIF/WEBP）",
-        hint: "GET • 自动选择缓存格式",
+        label: t("pages.asset.apiPreview"),
+        hint: t("pages.asset.apiPreviewHint"),
         href: asset.preview_url || fileUrl.preview(assetKey),
         size: asset.preview_file_size ?? null,
         filename: `${assetKey}-preview`,
       },
       {
-        label: "缩略图",
-        hint: "GET • 卡片用 AVIF",
+        label: t("pages.asset.apiThumb"),
+        hint: t("pages.asset.apiThumbHint"),
         href: asset.thumb_url || fileUrl.thumb(assetKey),
         size: asset.thumb_file_size ?? null,
         filename: `${assetKey}-thumb`,
@@ -561,22 +569,22 @@ function ApiLinksSection({
     ];
     if (asset.original_path) {
       items.push({
-        label: "存储原始路径",
-        hint: "storage 内部相对路径，仅供参考",
+        label: t("pages.asset.apiStoragePath"),
+        hint: t("pages.asset.apiStoragePathHint"),
         href: asset.original_path,
         external: false,
       });
     }
     return items;
-  }, [asset, assetKey]);
+  }, [asset, assetKey, t]);
 
   return (
     <section className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-medium">资源链接</h2>
+        <h2 className="text-sm font-medium">{t("pages.asset.resourceLinks")}</h2>
         {pageLabel && (
           <span className="rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] text-primary">
-            当前 {pageLabel}
+            {t("pages.asset.currentPage", { page: pageLabel })}
           </span>
         )}
       </div>
@@ -586,7 +594,7 @@ function ApiLinksSection({
         ))}
       </div>
       <p className="text-[11px] text-muted-foreground">
-        原图需要带 <code>Authorization: Bearer &lt;token&gt;</code> 才能访问。预览缓存如果还没生成会自动回退到原图。
+        {t("pages.asset.resourceLinksHint")}
       </p>
     </section>
   );
@@ -595,6 +603,7 @@ function ApiLinksSection({
 function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
   const toast = useToast();
   const { token } = useAuth();
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   const [opening, setOpening] = useState(false);
 
@@ -607,10 +616,10 @@ function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
           : href;
       await navigator.clipboard.writeText(absolute);
       setCopied(true);
-      toast.success("已复制");
+      toast.success(t("common.copied"));
       window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error("复制失败");
+      toast.error(t("pages.asset.copyFailed"));
     }
   }
 
@@ -619,7 +628,7 @@ function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
     const previewWindow = window.open("", "_blank");
     if (previewWindow) {
       previewWindow.opener = null;
-      writeResourceWindow(previewWindow, label, `<main class="message">Loading...</main>`);
+      writeResourceWindow(previewWindow, label, `<main class="message">${escapeHtml(t("common.loading"))}</main>`);
     }
     try {
       const absolute = href.startsWith("http")
@@ -633,10 +642,13 @@ function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
       if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
       const blob = await res.blob();
       const responseFilename = filenameFromDisposition(res.headers.get("content-disposition"));
-      await openBlobResource(blob, label, responseFilename || filename || label, previewWindow);
+      await openBlobResource(blob, label, responseFilename || filename || label, previewWindow, {
+        cannotPreview: t("pages.asset.fileCannotPreview"),
+        downloadFile: t("pages.asset.downloadFile"),
+      });
     } catch (e: unknown) {
       previewWindow?.close();
-      toast.error(e instanceof Error ? e.message : "打开失败");
+      toast.error(e instanceof Error ? e.message : t("pages.asset.openFailed"));
     } finally {
       setOpening(false);
     }
@@ -657,7 +669,7 @@ function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
           )}
           {needsAuth && !token && (
             <span className="rounded border border-amber-500/40 bg-amber-500/10 px-1 text-[10px] text-amber-500">
-              需要登录
+              {t("pages.asset.neededAuth")}
             </span>
           )}
         </div>
@@ -671,7 +683,7 @@ function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
       <button
         type="button"
         onClick={copy}
-        title="复制链接"
+        title={t("common.copyLink")}
         className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
         {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
@@ -681,7 +693,7 @@ function ApiLinkRow({ label, hint, href, size, filename, needsAuth }: ApiLink) {
           type="button"
           onClick={openInNewTab}
           disabled={opening}
-          title="新标签页打开"
+          title={t("common.openInNewTab")}
           className="rounded-md border border-border p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           {opening ? <Spinner className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}
@@ -733,6 +745,7 @@ async function openBlobResource(
   title: string,
   filename: string,
   existingWindow: Window | null,
+  messages: { cannotPreview: string; downloadFile: string },
 ): Promise<void> {
   const target = existingWindow ?? window.open("", "_blank");
   const objectUrl = URL.createObjectURL(blob);
@@ -754,9 +767,9 @@ async function openBlobResource(
     body = `
       <main class="message">
         <h1>${escapeHtml(filename)}</h1>
-        <p>This file type cannot be previewed inline by the browser.</p>
+        <p>${escapeHtml(messages.cannotPreview)}</p>
         <p class="meta">${escapeHtml(type)} · ${formatBytes(blob.size)}</p>
-        <a href="${escapeHtml(objectUrl)}" download="${escapeHtml(filename)}">Download file</a>
+        <a href="${escapeHtml(objectUrl)}" download="${escapeHtml(filename)}">${escapeHtml(messages.downloadFile)}</a>
       </main>
     `;
   }

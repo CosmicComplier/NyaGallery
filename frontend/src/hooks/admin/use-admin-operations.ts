@@ -6,6 +6,7 @@ import type { TranscodeJob, UploadHistoryItem, UploadLogItem } from "@/lib/types
 
 const OPS_ACTIVE_POLL_MS = 2500;
 const OPS_IDLE_POLL_MS = 15_000;
+const OPS_PAGE_SIZE = 40;
 
 export type AdminPollingMode = "active" | "idle" | "paused";
 
@@ -37,9 +38,9 @@ export function useAdminOperations({ enabled, onError }: UseAdminOperationsOptio
       const promise = (async () => {
         try {
           const [history, logs, jobs] = await Promise.all([
-            NyaApi.uploadHistory(40),
-            NyaApi.uploadLogs(40),
-            NyaApi.transcodeJobs(40),
+            optionalListResponse<UploadHistoryItem>(NyaApi.uploadHistory(OPS_PAGE_SIZE), OPS_PAGE_SIZE, 0),
+            optionalListResponse<UploadLogItem>(NyaApi.uploadLogs(OPS_PAGE_SIZE), OPS_PAGE_SIZE, 0),
+            optionalListResponse<TranscodeJob>(NyaApi.transcodeJobs(OPS_PAGE_SIZE), OPS_PAGE_SIZE, 0),
           ]);
           setUploadHistory(history.items);
           setUploadLogs(logs.items);
@@ -167,4 +168,25 @@ function hasActiveTranscodeJobs(jobs: TranscodeJob[]): boolean {
 function isTerminalTranscodeJob(job: TranscodeJob): boolean {
   const status = job.status.toLowerCase();
   return status === "success" || status === "error" || job.stage === "done" || job.progress >= 100;
+}
+
+type ListResponse<T> = {
+  items: T[];
+  limit: number;
+  offset: number;
+};
+
+async function optionalListResponse<T>(
+  request: Promise<ListResponse<T>>,
+  limit: number,
+  offset: number
+): Promise<ListResponse<T>> {
+  try {
+    return await request;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) {
+      return { items: [], limit, offset };
+    }
+    throw err;
+  }
 }

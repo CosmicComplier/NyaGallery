@@ -1,6 +1,7 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { useI18n } from "@/components/providers/locale-provider";
 
 export function LimitGrid({
   title,
@@ -19,13 +20,15 @@ export function LimitGrid({
   onRequests: (value: number) => void;
   onBytesMiB: (value: number) => void;
 }) {
+  const { t } = useI18n();
+
   return (
     <div className="space-y-2 rounded-md border border-border p-3">
       <div className="text-xs text-muted-foreground">{title}</div>
       <div className="grid gap-3 md:grid-cols-3">
-        <NumberField label="并发" value={concurrency} onChange={onConcurrency} />
-        <NumberField label="请求/分钟" value={requests} onChange={onRequests} />
-        <NumberField label="流量/分钟" value={bytesMiB} suffix="MiB" onChange={onBytesMiB} />
+        <NumberField label={t("admin.security.concurrency")} value={concurrency} onChange={onConcurrency} />
+        <NumberField label={t("admin.security.requestsPerMinute")} value={requests} onChange={onRequests} />
+        <NumberField label={t("admin.security.trafficPerMinute")} value={bytesMiB} suffix="MiB" onChange={onBytesMiB} />
       </div>
     </div>
   );

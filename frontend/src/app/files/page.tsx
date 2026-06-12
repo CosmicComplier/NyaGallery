@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ContentFilterToggles } from "@/components/content/content-filter-toggles";
 import { InfiniteGallery } from "@/components/gallery/infinite-gallery";
+import { useI18n } from "@/components/providers/locale-provider";
 import { Button } from "@/components/ui/button";
 import { SwitchLabel } from "@/components/ui/switch-label";
 import { useBrowseGalleryQueries } from "@/hooks/gallery/use-browse-gallery-queries";
@@ -23,16 +24,16 @@ import type { SearchOrder, SearchSort } from "@/lib/types";
 
 const SORT_OPTIONS: Array<{
   value: SearchSort;
-  label: string;
+  labelKey: string;
   icon: typeof CalendarDays;
 }> = [
-  { value: "artwork_date", label: "作品日期", icon: CalendarDays },
-  { value: "uploaded_at", label: "入库时间", icon: Clock },
-  { value: "pixiv_upload_date", label: "Pixiv 修改", icon: Images },
-  { value: "original_filename", label: "文件名", icon: FileText },
-  { value: "title", label: "标题", icon: Type },
-  { value: "artist", label: "作者", icon: PenLine },
-  { value: "source_id", label: "来源 ID", icon: Hash },
+  { value: "artwork_date", labelKey: "pages.files.sort.artwork_date", icon: CalendarDays },
+  { value: "uploaded_at", labelKey: "pages.files.sort.uploaded_at", icon: Clock },
+  { value: "pixiv_upload_date", labelKey: "pages.files.sort.pixiv_upload_date", icon: Images },
+  { value: "original_filename", labelKey: "pages.files.sort.original_filename", icon: FileText },
+  { value: "title", labelKey: "pages.files.sort.title", icon: Type },
+  { value: "artist", labelKey: "pages.files.sort.artist", icon: PenLine },
+  { value: "source_id", labelKey: "pages.files.sort.source_id", icon: Hash },
 ];
 
 const SORT_VALUES = new Set<SearchSort>(SORT_OPTIONS.map((item) => item.value));
@@ -46,6 +47,7 @@ function normalizeOrder(value: string | null): SearchOrder {
 }
 
 function FilesContent() {
+  const { t } = useI18n();
   const params = useSearchParams();
   const router = useRouter();
   const sort = useMemo(() => normalizeSort(params?.get("sort") ?? null), [params]);
@@ -69,10 +71,10 @@ function FilesContent() {
   return (
     <div className="container py-6">
       <header className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">所有文件</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{t("pages.files.title")}</h1>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <ContentFilterToggles className="mr-1" />
-          <SwitchLabel label="折叠多页" checked={collapseWorks} onChange={setCollapseWorks} />
+          <SwitchLabel label={t("pages.files.collapseWorks")} checked={collapseWorks} onChange={setCollapseWorks} />
           <div className="flex max-w-full flex-wrap gap-1 rounded-lg border border-border bg-muted/40 p-1">
             {SORT_OPTIONS.map((option) => {
               const Icon = option.icon;
@@ -90,7 +92,7 @@ function FilesContent() {
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" />
-                  <span>{option.label}</span>
+                  <span>{t(option.labelKey)}</span>
                 </button>
               );
             })}
@@ -102,7 +104,7 @@ function FilesContent() {
             className="gap-1.5"
           >
             <DirectionIcon className="h-3.5 w-3.5" />
-            {order === "desc" ? "降序" : "升序"}
+            {order === "desc" ? t("pages.files.orderDesc") : t("pages.files.orderAsc")}
           </Button>
         </div>
       </header>
@@ -119,9 +121,14 @@ function FilesContent() {
   );
 }
 
+function FilesFallback() {
+  const { t } = useI18n();
+  return <div className="container py-6 text-sm text-muted-foreground">{t("common.loading")}</div>;
+}
+
 export default function FilesPage() {
   return (
-    <Suspense fallback={<div className="container py-6 text-sm text-muted-foreground">加载中...</div>}>
+    <Suspense fallback={<FilesFallback />}>
       <FilesContent />
     </Suspense>
   );

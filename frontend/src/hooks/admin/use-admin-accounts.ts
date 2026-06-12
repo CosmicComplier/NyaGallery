@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { ApiError, NyaApi } from "@/lib/api";
 import type { ApiTokenSummary, Role, UserSummary } from "@/lib/types";
 import type { AdminActionRunner } from "./use-admin-action";
@@ -11,6 +12,7 @@ type UseAdminAccountsOptions = {
 };
 
 export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
+  const { t } = useI18n();
   const [newUser, setNewUser] = useState({ username: "", password: "", role: "viewer" as Role });
   const [passwordDraft, setPasswordDraft] = useState({ oldPassword: "", newPassword: "", confirmPassword: "" });
   const [userPasswordDrafts, setUserPasswordDrafts] = useState<Record<string, string>>({});
@@ -43,7 +45,7 @@ export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
         const result = await run(
           "token-list",
           () => NyaApi.userTokens(target),
-          (response) => `已加载 ${response.items.length} 个 Token`
+          (response) => t("admin.accounts.tokensLoaded", { count: response.items.length })
         );
         if (result) setApiTokens(result.items);
         return result;
@@ -57,7 +59,7 @@ export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
         return null;
       }
     },
-    [onError, run]
+    [onError, run, t]
   );
 
   const loadUserTokens = useCallback(
@@ -72,11 +74,11 @@ export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
       const result = await run(
         `token-revoke-${tokenId}`,
         () => NyaApi.revokeToken(tokenId),
-        () => "Token 已撤销"
+        () => t("admin.accounts.tokenRevoked")
       );
       if (result) await loadTokensFor(username);
     },
-    [loadTokensFor, run]
+    [loadTokensFor, run, t]
   );
 
   const issueTokenForTarget = useCallback(
@@ -86,10 +88,10 @@ export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
       await run("token", () => NyaApi.issueToken(target, tokenLabel.trim()), (result) => {
         setIssuedToken(result.token);
         void loadTokensFor(target, false);
-        return "Token 已签发";
+        return t("admin.accounts.tokenIssued");
       });
     },
-    [loadTokensFor, run, tokenLabel]
+    [loadTokensFor, run, t, tokenLabel]
   );
 
   const createUser = useCallback(async () => {
@@ -97,7 +99,7 @@ export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
     const created = await run(
       "create-user",
       () => NyaApi.createUser(newUser.username, newUser.password, newUser.role),
-      (user) => `已创建用户 ${user.username}`
+      (user) => t("admin.accounts.userCreated", { username: user.username })
     );
     if (!created) return;
     setUsers((current) => {
@@ -107,39 +109,39 @@ export function useAdminAccounts({ run, onError }: UseAdminAccountsOptions) {
       );
     });
     setNewUser((draft) => ({ ...draft, username: "", password: "" }));
-  }, [newUser.password, newUser.role, newUser.username, run]);
+  }, [newUser.password, newUser.role, newUser.username, run, t]);
 
   const changePassword = useCallback(async () => {
     if (!passwordDraft.oldPassword || !passwordDraft.newPassword) return;
     if (passwordDraft.newPassword !== passwordDraft.confirmPassword) {
-      onError("两次输入的新密码不一致");
+      onError(t("admin.accounts.passwordMismatch"));
       return;
     }
     const result = await run(
       "change-password",
       () => NyaApi.changePassword(passwordDraft.oldPassword, passwordDraft.newPassword),
-      () => "密码已更新"
+      () => t("admin.accounts.passwordUpdated")
     );
     if (result) setPasswordDraft({ oldPassword: "", newPassword: "", confirmPassword: "" });
-  }, [onError, passwordDraft.confirmPassword, passwordDraft.newPassword, passwordDraft.oldPassword, run]);
+  }, [onError, passwordDraft.confirmPassword, passwordDraft.newPassword, passwordDraft.oldPassword, run, t]);
 
   const resetUserPassword = useCallback(
     async (username: string) => {
       const newPassword = userPasswordDrafts[username] ?? "";
       if (!newPassword) {
-        onError("请输入新密码");
+        onError(t("admin.accounts.enterNewPassword"));
         return;
       }
       const updated = await run(
         `user-password-${username}`,
         () => NyaApi.resetUserPassword(username, newPassword),
-        (user) => `已重置 ${user.username} 的密码`
+        (user) => t("admin.accounts.passwordResetFor", { username: user.username })
       );
       if (!updated) return;
       setUserPasswordDrafts((drafts) => ({ ...drafts, [username]: "" }));
       setUsers((current) => current.map((user) => (user.username === updated.username ? updated : user)));
     },
-    [onError, run, userPasswordDrafts]
+    [onError, run, t, userPasswordDrafts]
   );
 
   return {

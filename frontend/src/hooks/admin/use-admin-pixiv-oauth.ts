@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useI18n } from "@/components/providers/locale-provider";
 import { ApiError, NyaApi } from "@/lib/api";
 import type { AdminActionRunner } from "./use-admin-action";
 
@@ -47,6 +48,7 @@ export function useAdminPixivOAuth({
   onError,
   onSuccess,
 }: UseAdminPixivOAuthOptions) {
+  const { t } = useI18n();
   const [pixivLoginDraft, setPixivLoginDraft] = useState<PixivLoginDraft>({ username: "", password: "" });
   const [pixivVisibleSession, setPixivVisibleSession] = useState<PixivVisibleSession | null>(null);
   const [pixivOAuthCallback, setPixivOAuthCallback] = useState("");
@@ -82,7 +84,7 @@ export function useAdminPixivOAuth({
           setPixivRefreshToken(session.refresh_token);
           setLastPixivUser(session.user);
           setPixivLoginDraft({ username: "", password: "" });
-          onSuccess("可见浏览器登录已获取 Refresh Token");
+          onSuccess(t("admin.pixiv.visibleLoginTokenReceived"));
         }
         if (session.status === "error" && session.error) {
           onError(session.error);
@@ -97,7 +99,7 @@ export function useAdminPixivOAuth({
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [onError, onSuccess, pixivVisibleSession?.id, pixivVisibleSession?.status, setLastPixivUser, setPixivRefreshToken]);
+  }, [onError, onSuccess, pixivVisibleSession?.id, pixivVisibleSession?.status, setLastPixivUser, setPixivRefreshToken, t]);
 
   const pixivOAuthContinueUrl = useMemo(() => pixivPostRedirectUrl(pixivOAuthCallback), [pixivOAuthCallback]);
   const pixivOAuthStartUrl = useMemo(() => pixivPostRedirectStartUrl(pixivOAuthCallback), [pixivOAuthCallback]);
@@ -106,22 +108,22 @@ export function useAdminPixivOAuth({
     () => (pixivOAuthInputKind === "login" || pixivOAuthInputKind === "start" ? pixivOAuthCallback.trim() : pixivOAuthContinueUrl),
     [pixivOAuthCallback, pixivOAuthContinueUrl, pixivOAuthInputKind]
   );
-  const pixivOAuthHintText = useMemo(() => pixivOAuthHint(pixivOAuthInputKind), [pixivOAuthInputKind]);
+  const pixivOAuthHintText = useMemo(() => t(`admin.pixiv.oauthHints.${pixivOAuthInputKind}`), [pixivOAuthInputKind, t]);
 
   const pixivBrowserLoginDisabledReason = useMemo(() => {
-    if (busy === "pixiv-oauth-browser-login") return "正在登录 Pixiv...";
-    if (supportsBrowserOAuthLogin === false) return "后端未安装 pixiv-login，请安装后重启。";
-    if (!pixivLoginDraft.username.trim()) return "请先填写 Pixiv ID / 邮箱。";
-    if (!pixivLoginDraft.password) return "请先填写 Pixiv 密码。";
+    if (busy === "pixiv-oauth-browser-login") return t("admin.pixiv.oauthBusy");
+    if (supportsBrowserOAuthLogin === false) return t("admin.pixiv.oauthMissingDependency");
+    if (!pixivLoginDraft.username.trim()) return t("admin.pixiv.oauthNeedUsername");
+    if (!pixivLoginDraft.password) return t("admin.pixiv.oauthNeedPassword");
     return "";
-  }, [busy, pixivLoginDraft.password, pixivLoginDraft.username, supportsBrowserOAuthLogin]);
+  }, [busy, pixivLoginDraft.password, pixivLoginDraft.username, supportsBrowserOAuthLogin, t]);
 
   const pixivVisibleLoginDisabledReason = useMemo(() => {
-    if (pixivVisibleSession?.status === "running") return "可见浏览器登录进行中，请在弹出的浏览器内完成登录。";
-    if (busy === "pixiv-oauth-visible-start") return "正在启动可见浏览器...";
-    if (supportsBrowserOAuthLogin === false) return "后端未安装 pixiv-login，请安装后重启。";
+    if (pixivVisibleSession?.status === "running") return t("admin.pixiv.visibleLoginRunning");
+    if (busy === "pixiv-oauth-visible-start") return t("admin.pixiv.visibleLoginStarting");
+    if (supportsBrowserOAuthLogin === false) return t("admin.pixiv.oauthMissingDependency");
     return "";
-  }, [busy, pixivVisibleSession?.status, supportsBrowserOAuthLogin]);
+  }, [busy, pixivVisibleSession?.status, supportsBrowserOAuthLogin, t]);
 
   const startPixivOAuth = useCallback(async () => {
     const popup = window.open("about:blank", "_blank");
@@ -136,7 +138,7 @@ export function useAdminPixivOAuth({
     const result = await run(
       "pixiv-oauth-start",
       () => NyaApi.pixivOAuthStart(),
-      () => "已生成 Pixiv 登录入口"
+      () => t("admin.pixiv.loginEntryGenerated")
     );
     if (!result) {
       popup?.close();
@@ -164,38 +166,38 @@ export function useAdminPixivOAuth({
         window.open(result.authorization_url, "_blank", "noopener,noreferrer");
       }
     } else {
-      onError("浏览器拦截了新窗口，请点击下方登录链接。");
+      onError(t("admin.pixiv.oauthErrors.popupBlocked"));
       window.open(result.authorization_url, "_blank", "noopener,noreferrer");
     }
-  }, [onError, run]);
+  }, [onError, run, t]);
 
   const exchangePixivOAuth = useCallback(async () => {
     if (!pixivOAuthVerifier.trim()) {
-      onError("请先打开 Pixiv 登录入口。");
+      onError(t("admin.pixiv.oauthErrors.openLoginFirst"));
       return;
     }
     const callback = pixivOAuthCallback.trim();
     if (!callback) {
-      onError("请粘贴 Pixiv 回调 URL 或 code。");
+      onError(t("admin.pixiv.oauthErrors.pasteCallback"));
       return;
     }
     const continueUrl = pixivPostRedirectUrl(callback);
     if (continueUrl) {
-      onError("这是 Pixiv 中转页，请在 Pixiv 页面继续跳转后再复制 callback。");
+      onError(t("admin.pixiv.oauthErrors.postRedirect"));
       window.open(continueUrl, "_blank", "noopener,noreferrer");
       return;
     }
     if (pixivOAuthKind(callback) === "login") {
-      onError("这是 Pixiv 登录入口，不是 callback。请先打开它完成登录。");
+      onError(t("admin.pixiv.oauthErrors.loginUrl"));
       window.open(callback, "_blank", "noopener,noreferrer");
       return;
     }
     if (pixivOAuthKind(callback) === "start") {
-      onError("这是 Pixiv start 中间页，不是 callback；请回到 Pixiv 中转页继续流程。");
+      onError(t("admin.pixiv.oauthErrors.startUrl"));
       return;
     }
     if (isPixivPicturesCallback(callback)) {
-      onError("这是 pixiv.pictures 的第三方回调，不属于本次登录。请重新点击 NyaGallery 的 Pixiv 登录入口。");
+      onError(t("admin.pixiv.oauthErrors.thirdParty"));
       return;
     }
     const result = await run(
@@ -204,7 +206,7 @@ export function useAdminPixivOAuth({
         callback_url: callback,
         code_verifier: pixivOAuthVerifier.trim(),
       }),
-      () => "已获取 Refresh Token"
+      () => t("admin.pixiv.refreshTokenReceived")
     );
     if (!result) return;
     setPixivRefreshToken(result.refresh_token);
@@ -215,24 +217,24 @@ export function useAdminPixivOAuth({
     } catch {
       /* ignore */
     }
-  }, [onError, pixivOAuthCallback, pixivOAuthVerifier, run, setLastPixivUser, setPixivRefreshToken]);
+  }, [onError, pixivOAuthCallback, pixivOAuthVerifier, run, setLastPixivUser, setPixivRefreshToken, t]);
 
   const loginPixivInBrowser = useCallback(async () => {
     const username = pixivLoginDraft.username.trim();
     if (!username || !pixivLoginDraft.password) {
-      onError("请填写 Pixiv ID/邮箱和密码。");
+      onError(t("admin.pixiv.oauthErrors.usernamePasswordRequired"));
       return;
     }
     const result = await run(
       "pixiv-oauth-browser-login",
       () => NyaApi.pixivOAuthBrowserLogin({ username, password: pixivLoginDraft.password }),
-      () => "已获取 Pixiv Refresh Token"
+      () => t("admin.pixiv.pixivRefreshTokenReceived")
     );
     if (!result) return;
     setPixivRefreshToken(result.refresh_token);
     setLastPixivUser(result.user);
     setPixivLoginDraft({ username, password: "" });
-  }, [onError, pixivLoginDraft.password, pixivLoginDraft.username, run, setLastPixivUser, setPixivRefreshToken]);
+  }, [onError, pixivLoginDraft.password, pixivLoginDraft.username, run, setLastPixivUser, setPixivRefreshToken, t]);
 
   const startVisiblePixivLogin = useCallback(async () => {
     const username = pixivLoginDraft.username.trim();
@@ -243,7 +245,7 @@ export function useAdminPixivOAuth({
         password: pixivLoginDraft.password || undefined,
         timeout_seconds: 900,
       }),
-      () => "已启动可见 Pixiv 登录浏览器"
+      () => t("admin.pixiv.visibleLoginStarted")
     );
     if (!result) return;
     setPixivVisibleSession({
@@ -252,7 +254,7 @@ export function useAdminPixivOAuth({
       message: result.message,
       error: result.error,
     });
-  }, [pixivLoginDraft.password, pixivLoginDraft.username, run]);
+  }, [pixivLoginDraft.password, pixivLoginDraft.username, run, t]);
 
   return {
     pixivLoginDraft,
@@ -300,17 +302,6 @@ function pixivOAuthKind(value: string): PixivOAuthInputKind {
   } catch {
     return /^[A-Za-z0-9_-]{20,}$/.test(text) ? "code" : "unknown";
   }
-}
-
-function pixivOAuthHint(kind: PixivOAuthInputKind): string {
-  if (kind === "empty") return "这里粘贴最终 callback URL，或只粘贴 code。";
-  if (kind === "code") return "已识别为 code，可以换取 Token。";
-  if (kind === "callback") return "已识别为 Pixiv callback，可以换取 Token。";
-  if (kind === "login") return "这是登录入口：先打开它完成 Pixiv 登录，之后再复制 callback。";
-  if (kind === "post_redirect") return "这是 Pixiv 中转页：点击“继续 Pixiv 跳转”会重新打开该 Pixiv 页面。";
-  if (kind === "start") return "这是 Pixiv start 中间页，不能由 NyaGallery 直接提交；最终需要 callback 或 code。";
-  if (kind === "third_party") return "这是第三方回调，不属于本次 NyaGallery OAuth。";
-  return "未识别的内容：需要最终 callback URL 或 code。";
 }
 
 function pixivPostRedirectUrl(value: string): string | null {

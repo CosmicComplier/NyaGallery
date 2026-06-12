@@ -126,7 +126,7 @@ from nyagallery.security import (
     viewer_api_allowed,
 )
 from nyagallery.secret_crypto import SecretEncryptionError, secret_encryption_enabled
-from nyagallery.storage import GalleryStorage, StorageError
+from nyagallery.storage import GalleryStorage, OriginalAlreadyExistsError, StorageError
 from nyagallery.storage import MetadataAlreadyExistsError, sha256_bytes
 from nyagallery.tags import TagAlreadyExistsError, TagCatalog, TagNotFoundError, source_tag_details_from_extra
 
@@ -986,13 +986,18 @@ def create_app(
             selected_storage_strategy = storage.validate_storage_strategy(storage_strategy)
         except StorageError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
-        stored = storage.write_original(
-            asset_key,
-            upload_filename,
-            content,
-            strategy_name=selected_storage_strategy,
-            content_type=file.content_type,
-        )
+        try:
+            stored = storage.write_original(
+                asset_key,
+                upload_filename,
+                content,
+                strategy_name=selected_storage_strategy,
+                content_type=file.content_type,
+            )
+        except OriginalAlreadyExistsError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        except StorageError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
         width, height = probe_media_size(stored.path, mime_type=file.content_type)
         is_animated = _is_animated_upload(stored.path, file.content_type)
         try:

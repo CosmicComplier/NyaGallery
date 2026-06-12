@@ -30,7 +30,6 @@ import {
   ADMIN_SECTION_ORDER,
   canAccessAdminSection,
   getAdminSectionHref,
-  getAdminSectionLabel,
   getVisibleAdminSection,
   normalizeAdminSection,
   type AdminSection,
@@ -73,11 +72,11 @@ const ADMIN_NAV: NavItem[] = ADMIN_SECTION_ORDER.map((section) => ({
   section,
   icon: ADMIN_SECTION_ICONS[section],
   href: getAdminSectionHref(section),
-  label: getAdminSectionLabel(section),
+  labelKey: `admin.sections.${section}`,
 }));
 
 const SUPPORT_NAV: NavItem[] = [
-  { href: "/faq", label: "FAQ", icon: HelpCircle },
+  { href: "/faq", labelKey: "nav.faq", icon: HelpCircle },
 ];
 
 const IMAGEFLOW_URL = "https://github.com/Yuri-NagaSaki/ImageFlow";
@@ -107,9 +106,9 @@ export function AppShell({ children }: AppShellProps) {
     ? privateItems.filter((item) => item.href !== "/admin")
     : privateItems;
   const navGroups = [
-    { label: "Gallery", items: PRIMARY_NAV },
-    { label: "Workspace", items: privateItems },
-    { label: "Support", items: SUPPORT_NAV },
+    { id: "gallery", labelKey: "layout.groups.gallery", items: PRIMARY_NAV },
+    { id: "workspace", labelKey: "layout.groups.workspace", items: privateItems },
+    { id: "support", labelKey: "layout.groups.support", items: SUPPORT_NAV },
   ].filter((group) => group.items.length > 0);
 
   return (
@@ -122,7 +121,7 @@ export function AppShell({ children }: AppShellProps) {
             </span>
             <span className="min-w-0">
               <span className="block text-lg font-semibold tracking-wide text-primary">NyaGallery</span>
-              <span className="block text-[11px] uppercase text-muted-foreground">console</span>
+              <span className="block text-[11px] uppercase text-muted-foreground">{t("layout.header.console")}</span>
             </span>
           </Link>
           <div className="mt-4 flex items-center justify-center gap-2 rounded-md border border-border bg-muted/35 p-2">
@@ -134,8 +133,8 @@ export function AppShell({ children }: AppShellProps) {
 
         <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-5">
           {navGroups.map((group) => (
-            <div key={group.label} className="space-y-1">
-              <div className="px-3 text-[11px] font-medium uppercase text-muted-foreground">{group.label}</div>
+            <div key={group.id} className="space-y-1">
+              <div className="px-3 text-[11px] font-medium uppercase text-muted-foreground">{t(group.labelKey)}</div>
               {group.items.map((item) => (
                 <NavLink
                   key={item.href}
@@ -145,7 +144,7 @@ export function AppShell({ children }: AppShellProps) {
                   label={item.labelKey ? t(item.labelKey) : item.label ?? ""}
                 />
               ))}
-              {group.label === "Workspace" && ready && token && isActivePath(pathname, "/admin") && (
+              {group.id === "workspace" && ready && token && isActivePath(pathname, "/admin") && (
                 <div className="ml-4 mt-1 space-y-1 border-l border-border pl-2">
                   {adminItems.map((item) => (
                     <NavLink
@@ -153,7 +152,7 @@ export function AppShell({ children }: AppShellProps) {
                       href={item.href}
                       active={isActiveAdminSection(pathname, adminSection, item.section)}
                       icon={item.icon}
-                      label={item.label ?? ""}
+                      label={item.labelKey ? t(item.labelKey) : item.label ?? ""}
                       nested
                     />
                   ))}
@@ -179,7 +178,7 @@ export function AppShell({ children }: AppShellProps) {
               </span>
               <span>
                 <span className="block text-sm font-medium leading-5">{currentSectionLabel(pathname, adminSection, t)}</span>
-                <span className="block text-[11px] text-muted-foreground">NyaGallery workspace</span>
+                <span className="block text-[11px] text-muted-foreground">{t("layout.header.workspace")}</span>
               </span>
             </div>
             <div className="ml-auto flex items-center gap-1 lg:absolute lg:right-5 lg:hidden">
@@ -207,10 +206,10 @@ export function AppShell({ children }: AppShellProps) {
         <footer className="border-t border-border bg-background px-4 py-5 text-xs text-muted-foreground lg:border-l">
           <div className="mx-auto grid w-full max-w-6xl gap-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-start">
-              <span>{"\uD83D\uDC3E Powered by"}</span>
+              <span>{"\uD83D\uDC3E "}{t("layout.footer.poweredBy")}</span>
               <span className="font-medium text-foreground">NyaGallery</span>
-              <span>By NayaCcR</span>
-              <FooterIconLink href={repositoryUrl} label="NyaGallery GitHub repository">
+              <span>{t("layout.footer.byNaya")}</span>
+              <FooterIconLink href={repositoryUrl} label={t("layout.footer.repoLabel")}>
                 <Github className="h-4 w-4" />
               </FooterIconLink>
             </div>
@@ -229,10 +228,10 @@ export function AppShell({ children }: AppShellProps) {
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-2 md:justify-end">
-              <FooterCredit href={IMAGEFLOW_URL} prefix={"\u2728"} note="Inspired by">
+              <FooterCredit href={IMAGEFLOW_URL} prefix={"\u2728"} note={t("layout.footer.inspiredBy")}>
                 ImageFlow
               </FooterCredit>
-              <FooterCredit href={SZURU_URL} prefix={"\u2764\uFE0F"} note="Thanks to">
+              <FooterCredit href={SZURU_URL} prefix={"\u2764\uFE0F"} note={t("layout.footer.thanksTo")}>
                 Szurubooru
               </FooterCredit>
             </div>
@@ -350,10 +349,11 @@ function isActiveAdminSection(pathname: string | null, currentSection: string, s
 function currentSectionLabel(pathname: string | null, adminSection: string, t: (key: string) => string): string {
   if (!pathname) return "NyaGallery";
   if (pathname === "/admin") {
-    return ADMIN_NAV.find((item) => item.section === adminSection)?.label ?? t("nav.admin");
+    const section = ADMIN_NAV.find((item) => item.section === adminSection);
+    return section?.labelKey ? t(section.labelKey) : section?.label ?? t("nav.admin");
   }
   const item = [...PRIMARY_NAV, ...PRIVATE_NAV].find((nav) => isActivePath(pathname, nav.href));
   if (item?.labelKey) return t(item.labelKey);
-  if (pathname.startsWith("/faq")) return "FAQ";
+  if (pathname.startsWith("/faq")) return t("nav.faq");
   return "NyaGallery";
 }

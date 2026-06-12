@@ -340,7 +340,37 @@ def init_database(engine: Engine) -> None:
     _ensure_column(engine, "assets", "extra", "JSON")
     _ensure_column(engine, "user_tokens", "last_used_at", "DATETIME")
     _ensure_column(engine, "user_tokens", "last_used_ip", "VARCHAR(120)")
+    _ensure_column(engine, "upload_logs", "asset_key", "VARCHAR(160)")
+    _ensure_column(engine, "upload_logs", "uploader_user_id", "INTEGER")
+    _ensure_column(engine, "upload_logs", "uploader_username", "VARCHAR(80)")
+    _ensure_column(engine, "upload_logs", "original_filename", "VARCHAR(500)")
+    _ensure_column(engine, "upload_logs", "file_size", "INTEGER")
+    _ensure_column(engine, "upload_logs", "mime_type", "VARCHAR(120)")
+    _ensure_column(engine, "upload_logs", "event", "VARCHAR(80)")
+    _ensure_column(engine, "upload_logs", "status", "VARCHAR(40)")
+    _ensure_column(engine, "upload_logs", "message", "VARCHAR(500)")
+    _ensure_column(engine, "upload_logs", "extra", "JSON")
+    _ensure_column(engine, "upload_logs", "created_at", "DATETIME")
+    _ensure_column(engine, "transcode_jobs", "job_id", "VARCHAR(80)")
+    _ensure_column(engine, "transcode_jobs", "asset_key", "VARCHAR(160)")
+    _ensure_column(engine, "transcode_jobs", "uploader_user_id", "INTEGER")
+    _ensure_column(engine, "transcode_jobs", "uploader_username", "VARCHAR(80)")
+    _ensure_column(engine, "transcode_jobs", "status", "VARCHAR(40)")
+    _ensure_column(engine, "transcode_jobs", "stage", "VARCHAR(80)")
+    _ensure_column(engine, "transcode_jobs", "message", "VARCHAR(500)")
+    _ensure_column(engine, "transcode_jobs", "progress", "FLOAT")
+    _ensure_column(engine, "transcode_jobs", "frames_done", "INTEGER")
+    _ensure_column(engine, "transcode_jobs", "frames_total", "INTEGER")
+    _ensure_column(engine, "transcode_jobs", "frames_per_second", "FLOAT")
+    _ensure_column(engine, "transcode_jobs", "file_size", "INTEGER")
+    _ensure_column(engine, "transcode_jobs", "kind", "VARCHAR(40)")
+    _ensure_column(engine, "transcode_jobs", "source", "VARCHAR(40)")
+    _ensure_column(engine, "transcode_jobs", "error", "VARCHAR(1000)")
+    _ensure_column(engine, "transcode_jobs", "created_at", "DATETIME")
+    _ensure_column(engine, "transcode_jobs", "started_at", "DATETIME")
     _ensure_column(engine, "transcode_jobs", "stage_started_at", "DATETIME")
+    _ensure_column(engine, "transcode_jobs", "finished_at", "DATETIME")
+    _ensure_column(engine, "transcode_jobs", "updated_at", "DATETIME")
 
 
 def rebuild_database(
@@ -1345,20 +1375,20 @@ def transcode_job_to_dict(job: TranscodeJobModel | None) -> dict[str, object] | 
         return None
     return {
         "id": job.id,
-        "job_id": job.job_id,
-        "asset_key": job.asset_key,
+        "job_id": job.job_id or f"legacy-{job.id}",
+        "asset_key": job.asset_key or "",
         "uploader_user_id": job.uploader_user_id,
         "uploader_username": job.uploader_username,
-        "status": job.status,
-        "stage": job.stage,
-        "message": job.message,
+        "status": job.status or "queued",
+        "stage": job.stage or "",
+        "message": job.message or "",
         "progress": round(float(job.progress or 0.0), 2),
         "frames_done": job.frames_done,
         "frames_total": job.frames_total,
         "frames_per_second": round(float(job.frames_per_second), 2) if job.frames_per_second is not None else None,
         "file_size": job.file_size,
         "kind": job.kind,
-        "source": job.source,
+        "source": job.source or "upload",
         "error": job.error,
         "created_at": _datetime_to_iso(job.created_at),
         "started_at": _datetime_to_iso(job.started_at),
@@ -1380,12 +1410,12 @@ def upload_log_to_dict(
         "asset_key": log.asset_key,
         "uploader_user_id": log.uploader_user_id,
         "uploader_username": log.uploader_username,
-        "original_filename": log.original_filename,
+        "original_filename": log.original_filename or "",
         "file_size": log.file_size,
         "mime_type": log.mime_type,
-        "event": log.event,
-        "status": log.status,
-        "message": log.message,
+        "event": log.event or "upload",
+        "status": log.status or "success",
+        "message": log.message or "",
         "extra": log.extra or {},
         "is_hidden": _asset_has_tag(asset, HIDDEN_TAG),
         "created_at": _datetime_to_iso(log.created_at),
