@@ -51,6 +51,25 @@ class PixivConfig:
 
 
 @dataclass(frozen=True)
+class NetworkProxyConfig:
+    name: str
+    url: str = ""
+
+
+@dataclass(frozen=True)
+class NetworkSourceConfig:
+    source: str
+    proxy: str = ""
+
+
+@dataclass(frozen=True)
+class NetworkConfig:
+    default_proxy: str = ""
+    proxies: tuple[NetworkProxyConfig, ...] = ()
+    sources: tuple[NetworkSourceConfig, ...] = ()
+
+
+@dataclass(frozen=True)
 class RedisConfig:
     url: str | None = None
     key_prefix: str = "nyagallery"
@@ -97,6 +116,7 @@ class NyaGalleryConfig:
     server: ServerConfig = ServerConfig()
     site: SiteConfig = SiteConfig()
     pixiv: PixivConfig = PixivConfig()
+    network: NetworkConfig = NetworkConfig()
     redis: RedisConfig = RedisConfig()
     security: SecurityConfig = SecurityConfig()
     original_storage: OriginalStorageConfig = OriginalStorageConfig()
@@ -154,6 +174,17 @@ def config_to_dict(config: NyaGalleryConfig, *, redact_secrets: bool = False) ->
             "default_request_delay_seconds": config.pixiv.default_request_delay_seconds,
             "max_concurrency": config.pixiv.max_concurrency,
         },
+        "network": {
+            "default_proxy": config.network.default_proxy,
+            "proxies": [
+                _network_proxy_to_dict(proxy, redact_secrets=redact_secrets)
+                for proxy in config.network.proxies
+            ],
+            "sources": [
+                {"source": source.source, "proxy": source.proxy}
+                for source in config.network.sources
+            ],
+        },
         "redis": {
             "url": config.redis.url or "",
             "key_prefix": config.redis.key_prefix,
@@ -194,6 +225,17 @@ def save_config_file(data: Mapping[str, Any], path: str | Path | None = None) ->
     return config
 
 
+def network_proxy_for(config: NyaGalleryConfig, source: str) -> str | None:
+    source_key = _network_source_key(source)
+    env_default = str(os.environ.get("NYAGALLERY_NETWORK_PROXY") or "").strip()
+    if env_default:
+        return env_default
+    resolved = _network_proxy_url_for(config.network, source_key)
+    if resolved:
+        return resolved
+    return None
+
+
 def render_config(config: NyaGalleryConfig) -> str:
     secret_key = config.security.secret_key
     lines: list[str] = [
@@ -222,6 +264,11 @@ def render_config(config: NyaGalleryConfig) -> str:
         f"default_request_delay_seconds = {float(config.pixiv.default_request_delay_seconds):g}",
         f"max_concurrency = {int(config.pixiv.max_concurrency)}",
         "",
+        "[network]",
+        f"default_proxy = {_toml_string(config.network.default_proxy)}",
+        "",
+        *_render_network_proxies(config.network.proxies, secret_key=secret_key),
+        *_render_network_sources(config.network.sources),
         "[redis]",
         f"url = {_toml_string(config.redis.url or '')}",
         f"key_prefix = {_toml_string(config.redis.key_prefix)}",
@@ -261,6 +308,44 @@ def _storage_strategy_to_dict(strategy: StorageStrategyConfig, *, redact_secrets
         "root_path": strategy.root_path,
         "timeout_seconds": strategy.timeout_seconds,
     }
+
+
+def _network_proxy_to_dict(proxy: NetworkProxyConfig, *, redact_secrets: bool = False) -> dict[str, object]:
+    return {
+        "name": proxy.name,
+        "url": "" if redact_secrets and proxy.url else proxy.url,
+        "url_configured": bool(proxy.url),
+    }
+
+
+def _render_network_proxies(proxies: tuple[NetworkProxyConfig, ...], *, secret_key: str = "") -> list[str]:
+    lines: list[str] = []
+    for proxy in proxies:
+        lines.extend(
+            [
+                "[[network.proxies]]",
+                f"name = {_toml_string(proxy.name)}",
+                f"url = {_toml_string(encrypt_secret(proxy.url, secret_key))}",
+                "",
+            ]
+        )
+    return lines
+
+
+def _render_network_sources(sources: tuple[NetworkSourceConfig, ...]) -> list[str]:
+    lines: list[str] = []
+    for source in sources:
+        source_key = _network_source_key(source.source)
+        if not source_key:
+            continue
+        lines.extend(
+            [
+                f"[network.sources.{source_key}]",
+                f"proxy = {_toml_string(source.proxy)}",
+                "",
+            ]
+        )
+    return lines
 
 
 def _render_storage_strategies(strategies: tuple[StorageStrategyConfig, ...], *, secret_key: str = "") -> list[str]:
@@ -305,6 +390,7 @@ def _config_from_dict(data: dict[str, Any], path: Path | None) -> NyaGalleryConf
     server = _table(data, "server")
     site = _table(data, "site")
     pixiv = _table(data, "pixiv")
+    network = _table(data, "network")
     redis = _table(data, "redis")
     security = _table(data, "security")
     original_storage = _table(data, "original_storage")
@@ -333,6 +419,7 @@ def _config_from_dict(data: dict[str, Any], path: Path | None) -> NyaGalleryConf
             default_request_delay_seconds=_float(pixiv.get("default_request_delay_seconds"), 1.0),
             max_concurrency=_int(pixiv.get("max_concurrency"), 1),
         ),
+        network=_network_from_dict(network, secret_key=secret_key),
         redis=RedisConfig(
             url=_optional_str(redis.get("url")),
             key_prefix=_str(redis.get("key_prefix"), "nyagallery"),
@@ -377,6 +464,10 @@ def _with_env_overrides(config: NyaGalleryConfig) -> NyaGalleryConfig:
         ),
         max_concurrency=_int(os.environ.get("NYAGALLERY_PIXIV_MAX_CONCURRENCY"), config.pixiv.max_concurrency),
     )
+    network = config.network
+    network_proxy = os.environ.get("NYAGALLERY_NETWORK_PROXY")
+    if network_proxy:
+        network = _network_with_proxy_override(network, name="env-default", url=network_proxy, source=None)
     redis = RedisConfig(
         url=os.environ.get("NYAGALLERY_REDIS_URL") or config.redis.url,
         key_prefix=os.environ.get("NYAGALLERY_REDIS_KEY_PREFIX") or config.redis.key_prefix,
@@ -404,6 +495,7 @@ def _with_env_overrides(config: NyaGalleryConfig) -> NyaGalleryConfig:
         server=server,
         site=site,
         pixiv=pixiv,
+        network=network,
         redis=redis,
         security=security,
         original_storage=original_storage,
@@ -440,6 +532,126 @@ def _storage_strategy_from_dict(data: dict[str, Any], *, secret_key: str = "") -
         root_path=_str(data.get("root_path"), "").strip("/"),
         timeout_seconds=_int(data.get("timeout_seconds"), 60),
     )
+
+
+def _network_from_dict(
+    data: dict[str, Any],
+    *,
+    secret_key: str = "",
+) -> NetworkConfig:
+    proxies = list(_network_proxy_items(data, secret_key=secret_key))
+    sources = list(_network_source_items(data))
+    return NetworkConfig(
+        default_proxy=_str(data.get("default_proxy"), ""),
+        proxies=tuple(proxies),
+        sources=tuple(sources),
+    )
+
+
+def _network_proxy_items(data: dict[str, Any], *, secret_key: str = "") -> list[NetworkProxyConfig]:
+    value = data.get("proxies", [])
+    if not isinstance(value, list):
+        return []
+    proxies: list[NetworkProxyConfig] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        name = _str(item.get("name"), "").strip()
+        key = name.casefold()
+        if not name or key in seen:
+            continue
+        seen.add(key)
+        proxies.append(
+            NetworkProxyConfig(
+                name=name,
+                url=_secret_str(item.get("url") or item.get("proxy"), secret_key),
+            )
+        )
+    return proxies
+
+
+def _network_source_items(data: dict[str, Any]) -> list[NetworkSourceConfig]:
+    value = data.get("sources", {})
+    sources: list[NetworkSourceConfig] = []
+    seen: set[str] = set()
+    if isinstance(value, dict):
+        for source, item in value.items():
+            proxy = ""
+            if isinstance(item, dict):
+                proxy = _str(item.get("proxy"), "")
+            elif isinstance(item, str):
+                proxy = item.strip()
+            source_key = _network_source_key(source)
+            if not source_key or source_key in seen:
+                continue
+            seen.add(source_key)
+            sources.append(NetworkSourceConfig(source=source_key, proxy=proxy))
+    elif isinstance(value, list):
+        for item in value:
+            if not isinstance(item, dict):
+                continue
+            source_key = _network_source_key(item.get("source") or item.get("name"))
+            if not source_key or source_key in seen:
+                continue
+            seen.add(source_key)
+            sources.append(NetworkSourceConfig(source=source_key, proxy=_str(item.get("proxy"), "")))
+    return sources
+
+
+def _network_proxy_url_for(network: NetworkConfig, source: str) -> str | None:
+    ref = _network_source_proxy_ref(network, source) or network.default_proxy
+    return _network_resolve_proxy_ref(network, ref)
+
+
+def _network_source_proxy_ref(network: NetworkConfig, source: str) -> str:
+    source_key = _network_source_key(source)
+    for item in network.sources:
+        if _network_source_key(item.source) == source_key:
+            return item.proxy.strip()
+    return ""
+
+
+def _network_resolve_proxy_ref(network: NetworkConfig, value: str | None) -> str | None:
+    ref = str(value or "").strip()
+    if not ref or ref.casefold() in {"direct", "none", "off", "false"}:
+        return None
+    for proxy in network.proxies:
+        if proxy.name.casefold() == ref.casefold():
+            return proxy.url or None
+    return ref if "://" in ref else None
+
+
+def _network_with_proxy_override(
+    network: NetworkConfig,
+    *,
+    name: str,
+    url: str,
+    source: str | None,
+) -> NetworkConfig:
+    proxy_name = name
+    proxies = tuple(item for item in network.proxies if item.name.casefold() != proxy_name.casefold())
+    proxies = (*proxies, NetworkProxyConfig(name=proxy_name, url=url))
+    if source is None:
+        return NetworkConfig(default_proxy=proxy_name, proxies=proxies, sources=network.sources)
+    source_key = _network_source_key(source)
+    sources = tuple(item for item in network.sources if _network_source_key(item.source) != source_key)
+    sources = (*sources, NetworkSourceConfig(source=source_key, proxy=proxy_name))
+    return NetworkConfig(default_proxy=network.default_proxy, proxies=proxies, sources=sources)
+
+
+def _unique_network_proxy_name(proxies: list[NetworkProxyConfig], preferred: str) -> str:
+    existing = {proxy.name.casefold() for proxy in proxies}
+    if preferred.casefold() not in existing:
+        return preferred
+    index = 2
+    while f"{preferred}-{index}".casefold() in existing:
+        index += 1
+    return f"{preferred}-{index}"
+
+
+def _network_source_key(value: Any) -> str:
+    return str(value or "").strip().casefold().replace("-", "_").replace(".", "_")
 
 
 def _data_with_secret_key(data: dict[str, Any]) -> dict[str, Any]:

@@ -32,6 +32,7 @@ from nyagallery.config import (
     apply_config_environment,
     config_to_dict,
     load_config,
+    network_proxy_for,
     read_config_file_data,
     save_config_file,
 )
@@ -237,6 +238,7 @@ class PixivSyncRequest(BaseModel):
     pixiv_token_id: int | None = None
     cookie: str | None = None
     pixiv_cookie_id: int | None = None
+    proxy_url: str | None = None
     storage_strategy: str | None = None
     public_first: bool = True
     rebuild_db: bool = True
@@ -862,6 +864,7 @@ def create_app(
                 "security.secret_key",
                 "pixiv.refresh_token",
                 "pixiv.cookie",
+                "network.proxies.url",
                 "original_storage.strategies.password",
                 "original_storage.strategies.token",
                 "original_storage.strategies.access_key_secret",
@@ -898,6 +901,7 @@ def create_app(
                 "security.secret_key",
                 "pixiv.refresh_token",
                 "pixiv.cookie",
+                "network.proxies.url",
                 "original_storage.strategies.password",
                 "original_storage.strategies.token",
                 "original_storage.strategies.access_key_secret",
@@ -1113,6 +1117,7 @@ def create_app(
             "storage_strategies": _storage_strategy_items(storage),
             "default_storage_strategy": storage.default_storage_strategy(),
             "secret_encryption_enabled": secret_encryption_enabled(state_config.security.secret_key),
+            "proxy_enabled": bool(network_proxy_for(state_config, "pixiv")),
             "auth_modes": ["public", "oauth_local", "refresh_token", "cookie", "oauth_manual", "local_import"],
             "default_request_delay_seconds": state_config.pixiv.default_request_delay_seconds,
             "max_concurrency": state_config.pixiv.max_concurrency,
@@ -1141,13 +1146,20 @@ def create_app(
         }
 
     @app.post("/api/sync/pixiv/oauth/exchange")
-    def api_pixiv_oauth_exchange(request: PixivOAuthExchangeRequest, _principal: AdminPrincipal) -> dict[str, object]:
+    def api_pixiv_oauth_exchange(
+        request: PixivOAuthExchangeRequest,
+        http_request: Request,
+        _principal: AdminPrincipal,
+    ) -> dict[str, object]:
+        state_config: NyaGalleryConfig = http_request.app.state.nyagallery.config
+        proxy_url = network_proxy_for(state_config, "pixiv")
         try:
             token = exchange_pixiv_oauth_code(
                 code=request.code,
                 callback_url=request.callback_url,
                 code_verifier=request.code_verifier,
                 state=request.state,
+                proxy_url=proxy_url,
             )
         except (PixivOAuthError, ValueError, json.JSONDecodeError) as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -1158,13 +1170,20 @@ def create_app(
         }
 
     @app.post("/api/sync/pixiv/oauth/browser-login")
-    def api_pixiv_oauth_browser_login(request: PixivOAuthBrowserLoginRequest, _principal: AdminPrincipal) -> dict[str, object]:
+    def api_pixiv_oauth_browser_login(
+        request: PixivOAuthBrowserLoginRequest,
+        http_request: Request,
+        _principal: AdminPrincipal,
+    ) -> dict[str, object]:
+        state_config: NyaGalleryConfig = http_request.app.state.nyagallery.config
+        proxy_url = network_proxy_for(state_config, "pixiv")
         try:
             token = get_pixiv_refresh_token_with_browser_worker(
                 headless=True,
                 username=request.username,
                 password=request.password,
                 timeout_seconds=request.timeout_seconds,
+                proxy_url=proxy_url,
             )
         except PixivOAuthError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -1203,6 +1222,7 @@ def create_app(
                 (payload.username or "").strip() or None,
                 payload.password or None,
                 payload.timeout_seconds,
+                network_proxy_for(app.state.nyagallery.config, "pixiv"),
             ),
             daemon=True,
         )
@@ -1222,14 +1242,18 @@ def create_app(
     @app.post("/api/pixiv/session/exchange")
     def api_pixiv_session_exchange(
         request: PixivSessionExchangeRequest,
+        http_request: Request,
         db: DbSession,
         principal: ApiPrincipal,
     ) -> dict[str, object]:
+        state_config: NyaGalleryConfig = http_request.app.state.nyagallery.config
+        proxy_url = network_proxy_for(state_config, "pixiv")
         try:
             token = get_pixiv_refresh_token_with_cookie_worker(
                 cookie=request.cookie,
                 headless=request.headless,
                 timeout_seconds=request.timeout_seconds,
+                proxy_url=proxy_url,
             )
         except PixivOAuthError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -1272,6 +1296,7 @@ def create_app(
     ) -> dict[str, object]:
         mode = _normalize_pixiv_auth_mode(request.auth_mode)
         try:
+            _apply_pixiv_proxy_config(request, http_request.app.state.nyagallery.config)
             _resolve_saved_pixiv_token(request, db, principal, http_request)
             _resolve_saved_pixiv_cookie(request, db, principal, http_request)
             if request.dry_run:
@@ -1339,6 +1364,7 @@ def create_app(
     ) -> dict[str, object]:
         mode = _normalize_pixiv_auth_mode(request.auth_mode)
         try:
+            _apply_pixiv_proxy_config(request, http_request.app.state.nyagallery.config)
             _resolve_saved_pixiv_token(request, db, principal, http_request)
             _resolve_saved_pixiv_cookie(request, db, principal, http_request)
             if request.dry_run:
@@ -1639,6 +1665,25 @@ def _developer_config_payload_with_preserved_secrets(
         value = pixiv.get(key)
         if value is None or str(value).strip() == "":
             pixiv[key] = str(file_pixiv.get(key) or "")
+    file_network = file_data.get("network") if isinstance(file_data.get("network"), dict) else {}
+    file_proxies = file_network.get("proxies") if isinstance(file_network.get("proxies"), list) else []
+    saved_proxies_by_name = {
+        str(item.get("name") or "").strip(): item
+        for item in file_proxies
+        if isinstance(item, dict) and str(item.get("name") or "").strip()
+    }
+    network = data.setdefault("network", {})
+    proxies = network.get("proxies")
+    if isinstance(proxies, list):
+        for item in proxies:
+            if not isinstance(item, dict):
+                continue
+            saved = saved_proxies_by_name.get(str(item.get("name") or "").strip())
+            if not saved:
+                continue
+            value = item.get("url")
+            if value is None or str(value).strip() == "":
+                item["url"] = str(saved.get("url") or "")
     file_original_storage = file_data.get("original_storage") if isinstance(file_data.get("original_storage"), dict) else {}
     file_strategies = file_original_storage.get("strategies") if isinstance(file_original_storage.get("strategies"), list) else []
     saved_by_name = {
@@ -1688,6 +1733,7 @@ def _run_visible_pixiv_login_session(
     username: str | None,
     password: str | None,
     timeout_seconds: int,
+    proxy_url: str | None,
 ) -> None:
     try:
         token = get_pixiv_refresh_token_with_browser_worker(
@@ -1695,6 +1741,7 @@ def _run_visible_pixiv_login_session(
             username=username,
             password=password,
             timeout_seconds=timeout_seconds,
+            proxy_url=proxy_url,
         )
         update = {
             "status": "success",
@@ -2277,6 +2324,11 @@ def _pixiv_private_components(mode: str, request: PixivSyncRequest, options: Pix
     raise RuntimeError(f"unsupported Pixiv auth mode: {request.auth_mode}")
 
 
+def _apply_pixiv_proxy_config(request: PixivSyncRequest, config: NyaGalleryConfig) -> None:
+    if not (request.proxy_url or "").strip():
+        request.proxy_url = network_proxy_for(config, "pixiv")
+
+
 def _pixiv_public_first_enabled(request: PixivSyncRequest, mode: str) -> bool:
     if not request.public_first:
         return False
@@ -2367,6 +2419,7 @@ def _pixiv_request_options(request: PixivSyncRequest) -> PixivRequestOptions:
         max_retries=request.max_retries,
         retry_base_seconds=request.retry_base_seconds,
         retry_max_seconds=max(request.retry_base_seconds, request.retry_max_seconds),
+        proxy_url=(request.proxy_url or "").strip(),
     )
 
 
@@ -2388,6 +2441,7 @@ def _pixiv_options_log(request: PixivSyncRequest) -> dict[str, object]:
         "retry_base_seconds": request.retry_base_seconds,
         "retry_max_seconds": request.retry_max_seconds,
         "concurrency": request.concurrency,
+        "proxy_enabled": bool((request.proxy_url or "").strip()),
         "dry_run": request.dry_run,
     }
 

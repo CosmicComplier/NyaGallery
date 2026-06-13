@@ -70,7 +70,7 @@ Create storage, the tag catalog, the database, and an admin account:
 nyagallery --storage storage setup --username admin --role admin --password 123123
 ```
 
-`setup` also creates or updates `nyagallery.toml` with a unique `[security].secret_key`, which encrypts saved Pixiv and cloud-storage credentials. If a copied config is served with an empty key, backend startup fills it automatically.
+`setup` also creates or updates `nyagallery.toml` with a unique `[security].secret_key`, which encrypts saved Pixiv, network proxy, and cloud-storage credentials. If a copied config is served with an empty key, backend startup fills it automatically.
 
 Run the backend:
 
@@ -108,13 +108,16 @@ Important sections:
 - `[site]`: project homepage, repository link, optional ICP filing number
 - `[original_storage]`: original-file storage strategy list for local, WebDAV, Upyun, Aliyun OSS, and OneDrive
 - `[pixiv]`: optional default Pixiv credentials and sync defaults
+- `[network]`: reusable proxy profiles plus per-source proxy rules
 - `[redis]`: optional Redis URL and shared security limiter
 - `[security]`: deployment secret key for reversible encryption of third-party credentials
 - `[developer]`: developer-only config editor switch and allowlisted console switch
 
 Upload and Pixiv sync can choose a configured storage strategy. `local` is always available; remote originals are downloaded into `storage/remote-cache` when media generation or original-file access needs a local copy.
 
-Reusable third-party credentials saved from the admin UI, including Pixiv Token/Cookie and cloud-storage secrets, are encrypted at rest when `[security].secret_key` is present. The UI still shows only redacted summaries. Keep this key stable across restarts and backend instances; losing it means those encrypted third-party credentials must be re-entered.
+Reusable third-party credentials saved from the admin UI, including Pixiv Token/Cookie, network proxy URLs, and cloud-storage secrets, are encrypted at rest when `[security].secret_key` is present. The UI still shows only redacted summaries. Keep this key stable across restarts and backend instances; losing it means those encrypted third-party credentials must be re-entered.
+
+If the backend cannot connect to a source directly, define proxy profiles in `[[network.proxies]]` and select them under `[network.sources.pixiv]`, `[network.sources.x]`, `[network.sources.fanbox]`, etc. `NYAGALLERY_NETWORK_PROXY` or `nyagallery --network-proxy ... serve` sets a deployment-wide proxy URL.
 
 ## Common Commands
 

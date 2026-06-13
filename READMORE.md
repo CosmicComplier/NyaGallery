@@ -114,7 +114,9 @@ The backend supports a unified TOML config. Copy `config.example.toml` to `nyaga
 nyagallery --config nyagallery.toml serve
 ```
 
-The file covers runtime settings such as `core.storage`, `core.database_url`, `server.host`, `server.port`, `site.project_homepage`, `site.icp_beian`, `pixiv.refresh_token`, optional Redis settings, and `[developer]` switches for the admin config editor and allowlisted developer console. CLI arguments override environment variables, and environment variables override the config file. Leave `site.icp_beian` empty to hide the ICP filing link in the frontend footer.
+The file covers runtime settings such as `core.storage`, `core.database_url`, `server.host`, `server.port`, `site.project_homepage`, `site.icp_beian`, `pixiv.refresh_token`, `[network]` proxy profiles/source rules, optional Redis settings, and `[developer]` switches for the admin config editor and allowlisted developer console. CLI arguments override environment variables, and environment variables override the config file. Leave `site.icp_beian` empty to hide the ICP filing link in the frontend footer.
+
+Use `[[network.proxies]]` plus `[network.sources.<source>]` when the backend needs an HTTP/HTTPS proxy for Pixiv or future sources such as X, Fanbox, or Misskey. `NYAGALLERY_NETWORK_PROXY` or `nyagallery --network-proxy ... serve` provides a deployment-wide proxy URL.
 
 Users with the `developer` role inherit admin capabilities and can access the admin developer module. Admin users cannot create developer users from the web UI/API; use the CLI or an existing developer account for that trust boundary. The developer console intentionally does not expose arbitrary shell execution; it only enables explicit maintenance actions such as privileged password resets when `developer.console_enabled = true`.
 

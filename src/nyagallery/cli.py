@@ -8,7 +8,14 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from nyagallery.config import NyaGalleryConfig, apply_config_environment, config_to_dict, load_config, save_config_file
+from nyagallery.config import (
+    NyaGalleryConfig,
+    apply_config_environment,
+    config_to_dict,
+    load_config,
+    network_proxy_for,
+    save_config_file,
+)
 from nyagallery.db import (
     UserModel,
     create_engine_for_url,
@@ -31,6 +38,7 @@ from nyagallery.pixiv import (
     HTTPPixivDownloader,
     PixivCookieClient,
     PixivPyClient,
+    PixivRequestOptions,
     PixivSyncService,
     create_pixiv_oauth_start,
     exchange_pixiv_oauth_code,
@@ -46,6 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", default=None, help="Path to nyagallery.toml.")
     parser.add_argument("--storage", default=None, help="Storage root directory.")
     parser.add_argument("--database-url", default=None, help="SQLAlchemy database URL.")
+    parser.add_argument("--network-proxy", default=None, help="Default HTTP/HTTPS proxy URL for source requests.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     secret_key_cmd = subparsers.add_parser("generate-secret-key", help="Generate a deployment secret key for encrypted credentials.")
@@ -56,6 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     sync_pid.add_argument("--auth-mode", default="auto", help="auto, public, refresh_token, or cookie.")
     sync_pid.add_argument("--refresh-token", default=None)
     sync_pid.add_argument("--cookie", default=None)
+    sync_pid.add_argument("--network-proxy", dest="command_network_proxy", default=None, help="Default HTTP/HTTPS proxy URL for source requests.")
     sync_pid.add_argument("--storage-strategy", default=None, help="Original storage strategy name.")
     sync_pid.add_argument("--generate-cache", action="store_true")
     sync_pid.add_argument("--rebuild-db", action="store_true")
@@ -66,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
     sync_user.add_argument("--auth-mode", default="auto", help="auto, public, refresh_token, or cookie.")
     sync_user.add_argument("--refresh-token", default=None)
     sync_user.add_argument("--cookie", default=None)
+    sync_user.add_argument("--network-proxy", dest="command_network_proxy", default=None, help="Default HTTP/HTTPS proxy URL for source requests.")
     sync_user.add_argument("--storage-strategy", default=None, help="Original storage strategy name.")
     sync_user.add_argument("--generate-cache", action="store_true")
     sync_user.add_argument("--rebuild-db", action="store_true")
@@ -77,6 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     pixiv_login.add_argument("--headless", action="store_true", help="Run browser headlessly; requires --username and --password.")
     pixiv_login.add_argument("--username", default=None, help="Pixiv account ID or email for headless/auto-filled login.")
     pixiv_login.add_argument("--password", default=None, help="Pixiv password for headless/auto-filled login.")
+    pixiv_login.add_argument("--network-proxy", dest="command_network_proxy", default=None, help="Default HTTP/HTTPS proxy URL for source requests.")
     pixiv_login.add_argument("--plain", action="store_true", help="Print only the refresh token.")
 
     oauth_start = subparsers.add_parser(
@@ -94,6 +106,7 @@ def main(argv: list[str] | None = None) -> int:
     oauth_exchange.add_argument("--callback-url", default=None)
     oauth_exchange.add_argument("--code", default=None)
     oauth_exchange.add_argument("--state", default=None)
+    oauth_exchange.add_argument("--network-proxy", dest="command_network_proxy", default=None, help="Default HTTP/HTTPS proxy URL for source requests.")
     oauth_exchange.add_argument("--plain", action="store_true", help="Print only the refresh token.")
 
     init_tags = subparsers.add_parser("init-tags", help="Create the default tag catalog.")
@@ -143,8 +156,12 @@ def main(argv: list[str] | None = None) -> int:
     serve.add_argument("--host", default=None)
     serve.add_argument("--port", type=int, default=None)
     serve.add_argument("--access-log", action="store_true", help="Enable uvicorn per-request access logs.")
+    serve.add_argument("--network-proxy", dest="command_network_proxy", default=None, help="Default HTTP/HTTPS proxy URL for source requests.")
 
     args = parser.parse_args(argv)
+    network_proxy = getattr(args, "command_network_proxy", None) or args.network_proxy
+    if network_proxy:
+        os.environ["NYAGALLERY_NETWORK_PROXY"] = network_proxy
     config = load_config(args.config)
     apply_config_environment(config)
     storage = GalleryStorage(
@@ -184,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
                 headless=args.headless,
                 username=args.username,
                 password=args.password,
+                proxy_url=network_proxy_for(config, "pixiv"),
             )
         except PixivOAuthError as exc:
             raise SystemExit(str(exc)) from exc
@@ -233,6 +251,7 @@ def main(argv: list[str] | None = None) -> int:
                 callback_url=args.callback_url,
                 code_verifier=args.code_verifier,
                 state=args.state,
+                proxy_url=network_proxy_for(config, "pixiv"),
             )
         except PixivOAuthError as exc:
             raise SystemExit(str(exc)) from exc
@@ -415,6 +434,7 @@ def _pixiv_cli_sync_components(args, config: NyaGalleryConfig) -> tuple[object, 
     mode = str(args.auth_mode or "auto").strip().casefold().replace("-", "_")
     refresh_token = args.refresh_token or config.pixiv.refresh_token
     cookie = args.cookie or config.pixiv.cookie
+    options = PixivRequestOptions(proxy_url=network_proxy_for(config, "pixiv") or "")
     if mode == "auto":
         if cookie:
             mode = "cookie"
@@ -423,13 +443,13 @@ def _pixiv_cli_sync_components(args, config: NyaGalleryConfig) -> tuple[object, 
         else:
             mode = "public"
     if mode == "public":
-        return PixivCookieClient(""), HTTPPixivDownloader()
+        return PixivCookieClient("", options=options), HTTPPixivDownloader(options=options)
     if mode == "cookie":
         if not cookie:
             raise SystemExit("--auth-mode cookie requires --cookie")
-        return PixivCookieClient(cookie), HTTPPixivDownloader(cookie=cookie)
+        return PixivCookieClient(cookie, options=options), HTTPPixivDownloader(cookie=cookie, options=options)
     if mode == "refresh_token":
-        return PixivPyClient.from_refresh_token(refresh_token), HTTPPixivDownloader()
+        return PixivPyClient.from_refresh_token(refresh_token, options=options), HTTPPixivDownloader(options=options)
     raise SystemExit(f"unsupported Pixiv auth mode: {mode}")
 
 

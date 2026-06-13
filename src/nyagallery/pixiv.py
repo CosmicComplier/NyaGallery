@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import asyncio
+from contextlib import contextmanager
 from dataclasses import dataclass
 import hashlib
 from http.cookies import SimpleCookie
@@ -17,7 +18,7 @@ import time
 from typing import Any, Callable, Iterable, Protocol
 from urllib.error import HTTPError
 from urllib.parse import parse_qs, urlencode, urlparse
-from urllib.request import Request, urlopen
+from urllib.request import ProxyHandler, Request, build_opener, urlopen
 
 from nyagallery.metadata import (
     GalleryMetadata,
@@ -61,6 +62,7 @@ class PixivRequestOptions:
     max_retries: int = 3
     retry_base_seconds: int = 60
     retry_max_seconds: int = 300
+    proxy_url: str = ""
 
 
 class PixivClient(Protocol):
@@ -154,6 +156,7 @@ def get_pixiv_refresh_token_with_browser(
     headless: bool = False,
     username: str | None = None,
     password: str | None = None,
+    proxy_url: str | None = None,
     login_factory: Any | None = None,
 ) -> PixivOAuthToken:
     """Open a local browser through gppt and return Pixiv OAuth tokens."""
@@ -172,15 +175,18 @@ def get_pixiv_refresh_token_with_browser(
             ) from exc
         login_factory = GetPixivToken
 
+    proxy = _effective_pixiv_proxy(proxy_url)
     try:
-        client = login_factory(headless=headless, username=username, password=password)
-        raw_response = _run_maybe_awaitable(
-            client.login(
-                headless=headless,
-                username=username,
-                password=password,
-            )
-        )
+        client_kwargs = {"headless": headless, "username": username, "password": password}
+        if proxy:
+            _add_supported_proxy_kwarg(client_kwargs, login_factory, proxy)
+        login_kwargs = {"headless": headless, "username": username, "password": password}
+        if proxy:
+            _add_supported_proxy_kwarg(login_kwargs, getattr(login_factory, "login", None), proxy)
+        with _pixiv_proxy_environment(proxy):
+            client = login_factory(**client_kwargs)
+            _add_supported_proxy_kwarg(login_kwargs, getattr(client, "login", None), proxy)
+            raw_response = _run_maybe_awaitable(client.login(**login_kwargs))
     except PixivOAuthError:
         raise
     except Exception as exc:
@@ -212,6 +218,7 @@ def get_pixiv_refresh_token_with_browser_worker(
     username: str | None,
     password: str | None,
     timeout_seconds: int = 180,
+    proxy_url: str | None = None,
     runner: Any | None = None,
 ) -> PixivOAuthToken:
     """Run gppt in a child process so Playwright failures cannot break the API process."""
@@ -220,6 +227,7 @@ def get_pixiv_refresh_token_with_browser_worker(
         "headless": headless,
         "username": username or None,
         "password": password or None,
+        "proxy_url": proxy_url or "",
     }
     return _pixiv_oauth_worker(payload, timeout_seconds=timeout_seconds, runner=runner)
 
@@ -232,13 +240,21 @@ def _pixiv_oauth_worker(
 ) -> PixivOAuthToken:
     command = [sys.executable, "-m", "nyagallery.pixiv_login_worker"]
     run = runner or subprocess.run
+    proxy = _effective_pixiv_proxy(payload.get("proxy_url") or payload.get("proxy"))
+    run_kwargs = {
+        "input": json.dumps(payload),
+        "text": True,
+        "capture_output": True,
+        "timeout": timeout_seconds,
+    }
+    if proxy:
+        env = os.environ.copy()
+        _apply_proxy_to_env(env, proxy)
+        run_kwargs["env"] = env
     try:
         completed = run(
             command,
-            input=json.dumps(payload),
-            text=True,
-            capture_output=True,
-            timeout=timeout_seconds,
+            **run_kwargs,
         )
     except subprocess.TimeoutExpired as exc:
         raise PixivOAuthError(
@@ -279,6 +295,7 @@ def get_pixiv_refresh_token_with_cookie(
     timeout_seconds: int = 180,
     callback_factory: Callable[[PixivOAuthStart, str, bool, int], str] | None = None,
     http_post: Any | None = None,
+    proxy_url: str | None = None,
 ) -> PixivOAuthToken:
     """Use an existing Pixiv web session cookie to complete OAuth and return tokens.
 
@@ -296,6 +313,7 @@ def get_pixiv_refresh_token_with_cookie(
             cookie_header,
             headless=headless,
             timeout_seconds=timeout_seconds,
+            proxy_url=proxy_url,
         )
     else:
         callback_url = callback_factory(start, cookie_header, headless, timeout_seconds)
@@ -305,6 +323,7 @@ def get_pixiv_refresh_token_with_cookie(
         code_verifier=start.code_verifier,
         http_post=http_post,
         timeout=min(max(10, timeout_seconds), 120),
+        proxy_url=proxy_url,
     )
 
 
@@ -313,6 +332,7 @@ def get_pixiv_refresh_token_with_cookie_worker(
     cookie: str,
     headless: bool = True,
     timeout_seconds: int = 180,
+    proxy_url: str | None = None,
     runner: Any | None = None,
 ) -> PixivOAuthToken:
     """Run cookie-based OAuth in a child process to isolate Playwright failures."""
@@ -321,6 +341,7 @@ def get_pixiv_refresh_token_with_cookie_worker(
         "cookie": cookie,
         "headless": headless,
         "timeout_seconds": timeout_seconds,
+        "proxy_url": proxy_url or "",
     }
     return _pixiv_oauth_worker(payload, timeout_seconds=timeout_seconds, runner=runner)
 
@@ -332,8 +353,9 @@ class HTTPPixivDownloader:
         timeout: int = 60,
         cookie: str = "",
         options: PixivRequestOptions | None = None,
+        proxy_url: str | None = None,
     ) -> None:
-        self.http = PixivHTTP(cookie=cookie, timeout=timeout, options=options)
+        self.http = PixivHTTP(cookie=cookie, timeout=timeout, options=options, proxy_url=proxy_url)
 
     def download(self, url: str) -> bytes:
         return self.http.get_bytes(url)
@@ -346,10 +368,13 @@ class PixivHTTP:
         cookie: str = "",
         timeout: int = 60,
         options: PixivRequestOptions | None = None,
+        proxy_url: str | None = None,
     ) -> None:
         self.cookie = cookie.strip()
         self.timeout = timeout
         self.options = options or PixivRequestOptions()
+        self.proxy_url = _effective_pixiv_proxy(proxy_url or self.options.proxy_url)
+        self._opener = _pixiv_proxy_opener(self.proxy_url)
         self._last_request_at = 0.0
 
     def get_json(self, url: str) -> Any:
@@ -362,7 +387,7 @@ class PixivHTTP:
             self._wait_for_spacing()
             try:
                 request = Request(url, headers=self._headers())
-                with urlopen(request, timeout=self.timeout) as response:  # noqa: S310
+                with self._open(request) as response:
                     self._last_request_at = time.monotonic()
                     return response.read()
             except HTTPError as exc:
@@ -378,6 +403,11 @@ class PixivHTTP:
         if last_error:
             raise last_error
         raise RuntimeError(f"failed to request Pixiv URL: {url}")
+
+    def _open(self, request: Request):
+        if self._opener is not None:
+            return self._opener.open(request, timeout=self.timeout)
+        return urlopen(request, timeout=self.timeout)  # noqa: S310
 
     def _headers(self) -> dict[str, str]:
         headers = {
@@ -424,6 +454,7 @@ def exchange_pixiv_oauth_code(
     state: str | None = None,
     http_post: Any | None = None,
     timeout: int = 30,
+    proxy_url: str | None = None,
 ) -> PixivOAuthToken:
     if _is_pixiv_pictures_callback(callback_url):
         raise PixivOAuthError(
@@ -454,7 +485,7 @@ def exchange_pixiv_oauth_code(
         "include_policy": "true",
         "redirect_uri": PIXIV_OAUTH_CALLBACK_URL,
     }
-    raw_response = _pixiv_oauth_post_token(payload, http_post=http_post, timeout=timeout)
+    raw_response = _pixiv_oauth_post_token(payload, http_post=http_post, timeout=timeout, proxy_url=proxy_url)
     response = _pixiv_oauth_response_payload(raw_response)
     access_token = str(response.get("access_token") or "").strip()
     refresh_token = str(response.get("refresh_token") or "").strip()
@@ -705,9 +736,10 @@ class PixivSyncService:
 class PixivPyClient:
     """pixivpy3 adapter. The package is optional so tests can run without it."""
 
-    def __init__(self, api: Any, *, options: PixivRequestOptions | None = None) -> None:
+    def __init__(self, api: Any, *, options: PixivRequestOptions | None = None, proxy_url: str | None = None) -> None:
         self.api = api
         self.options = options or PixivRequestOptions()
+        self.proxy_url = _effective_pixiv_proxy(proxy_url or self.options.proxy_url)
         self._last_request_at = 0.0
 
     @classmethod
@@ -716,6 +748,7 @@ class PixivPyClient:
         refresh_token: str | None = None,
         *,
         options: PixivRequestOptions | None = None,
+        proxy_url: str | None = None,
     ) -> "PixivPyClient":
         token = refresh_token or os.environ.get("PIXIV_REFRESH_TOKEN")
         if not token:
@@ -725,9 +758,12 @@ class PixivPyClient:
         except ImportError as exc:
             raise RuntimeError("Install pixiv support with: pip install -e .[pixiv]") from exc
 
+        proxy = _effective_pixiv_proxy(proxy_url or (options.proxy_url if options else ""))
         api = AppPixivAPI()
-        api.auth(refresh_token=token)
-        return cls(api, options=options)
+        _configure_pixivpy_proxy(api, proxy)
+        with _pixiv_proxy_environment(proxy):
+            api.auth(refresh_token=token)
+        return cls(api, options=options, proxy_url=proxy)
 
     def get_illust(self, pixiv_id: str) -> PixivArtwork:
         response = self._call_api(self.api.illust_detail, str(pixiv_id))
@@ -749,7 +785,8 @@ class PixivPyClient:
     def _call_api(self, fn, *args, **kwargs):
         _wait_for_pixiv_delay(self)
         try:
-            return fn(*args, **kwargs)
+            with _pixiv_proxy_environment(self.proxy_url):
+                return fn(*args, **kwargs)
         except Exception as exc:
             retry_after = _exception_retry_after(exc)
             if retry_after is not None:
@@ -889,8 +926,15 @@ class PixivPyClient:
 class PixivCookieClient:
     """Pixiv web AJAX adapter using an optional temporary browser cookie string."""
 
-    def __init__(self, cookie: str = "", *, options: PixivRequestOptions | None = None, http: PixivHTTP | None = None) -> None:
-        self.http = http or PixivHTTP(cookie=cookie, options=options)
+    def __init__(
+        self,
+        cookie: str = "",
+        *,
+        options: PixivRequestOptions | None = None,
+        http: PixivHTTP | None = None,
+        proxy_url: str | None = None,
+    ) -> None:
+        self.http = http or PixivHTTP(cookie=cookie, options=options, proxy_url=proxy_url)
 
     def get_illust(self, pixiv_id: str) -> PixivArtwork:
         response = self.http.get_json(PIXIV_AJAX_ILLUST_URL.format(pid=str(pixiv_id)))
@@ -1001,6 +1045,106 @@ class PixivCookieClient:
         return [PixivPage(original_url=str(url), filename=filename_from_url(str(url)), width=width, height=height)]
 
 
+def _effective_pixiv_proxy(value: Any = None) -> str:
+    return str(
+        value
+        or os.environ.get("NYAGALLERY_NETWORK_PROXY")
+        or ""
+    ).strip()
+
+
+def _pixiv_proxy_opener(proxy_url: str):
+    proxy = _effective_pixiv_proxy(proxy_url)
+    if not proxy:
+        return None
+    return build_opener(ProxyHandler({"http": proxy, "https": proxy}))
+
+
+def _configure_pixivpy_proxy(api: Any, proxy_url: str) -> None:
+    proxy = _effective_pixiv_proxy(proxy_url)
+    if not proxy:
+        return
+    proxies = {"http": proxy, "https": proxy}
+    for attr in ("requests", "session", "_requests", "_session"):
+        target = getattr(api, attr, None)
+        if target is None:
+            continue
+        target_proxies = getattr(target, "proxies", None)
+        if isinstance(target_proxies, dict):
+            target_proxies.update(proxies)
+            return
+        try:
+            setattr(target, "proxies", dict(proxies))
+            return
+        except Exception:
+            pass
+    if callable(getattr(api, "set_proxies", None)):
+        api.set_proxies(proxies)
+        return
+    try:
+        setattr(api, "proxies", dict(proxies))
+    except Exception:
+        pass
+
+
+def _add_supported_proxy_kwarg(kwargs: dict[str, object], fn: Any, proxy_url: str) -> None:
+    if fn is None or not proxy_url:
+        return
+    try:
+        signature = inspect.signature(fn)
+    except (TypeError, ValueError):
+        return
+    parameters = signature.parameters
+    if "proxy_url" in parameters:
+        kwargs["proxy_url"] = proxy_url
+        return
+    if "proxy" in parameters:
+        kwargs["proxy"] = proxy_url
+        return
+    if any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()):
+        kwargs["proxy_url"] = proxy_url
+
+
+@contextmanager
+def _pixiv_proxy_environment(proxy_url: str):
+    proxy = _effective_pixiv_proxy(proxy_url)
+    if not proxy:
+        yield
+        return
+    keys = (
+        "NYAGALLERY_NETWORK_PROXY",
+        "HTTP_PROXY",
+        "HTTPS_PROXY",
+        "ALL_PROXY",
+        "http_proxy",
+        "https_proxy",
+        "all_proxy",
+    )
+    previous = {key: os.environ.get(key) for key in keys}
+    try:
+        _apply_proxy_to_env(os.environ, proxy)
+        yield
+    finally:
+        for key, value in previous.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+
+def _apply_proxy_to_env(env: dict[str, str], proxy_url: str) -> None:
+    proxy = _effective_pixiv_proxy(proxy_url)
+    if not proxy:
+        return
+    env["NYAGALLERY_NETWORK_PROXY"] = proxy
+    env["HTTP_PROXY"] = proxy
+    env["HTTPS_PROXY"] = proxy
+    env["ALL_PROXY"] = proxy
+    env["http_proxy"] = proxy
+    env["https_proxy"] = proxy
+    env["all_proxy"] = proxy
+
+
 def _get(value: Any, key: str, default: Any = None) -> Any:
     if isinstance(value, dict):
         return value.get(key, default)
@@ -1022,6 +1166,7 @@ def _pixiv_oauth_callback_from_cookie_browser(
     *,
     headless: bool,
     timeout_seconds: int,
+    proxy_url: str | None = None,
 ) -> str:
     try:
         from playwright.sync_api import Error as PlaywrightError
@@ -1037,9 +1182,13 @@ def _pixiv_oauth_callback_from_cookie_browser(
         raise PixivOAuthError("Pixiv session cookie did not contain usable cookie pairs")
 
     timeout_ms = max(1, int(timeout_seconds)) * 1000
+    launch_kwargs: dict[str, object] = {"headless": headless}
+    proxy = _effective_pixiv_proxy(proxy_url)
+    if proxy:
+        launch_kwargs["proxy"] = {"server": proxy}
     try:
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=headless)
+            browser = playwright.chromium.launch(**launch_kwargs)
             try:
                 context = browser.new_context()
                 context.add_cookies(cookies)
@@ -1166,6 +1315,7 @@ def _pixiv_oauth_post_token(
     *,
     http_post: Any | None = None,
     timeout: int = 30,
+    proxy_url: str | None = None,
 ) -> Any:
     headers = _pixiv_oauth_headers()
     body = urlencode(payload).encode("utf-8")
@@ -1173,7 +1323,9 @@ def _pixiv_oauth_post_token(
         return http_post(PIXIV_OAUTH_TOKEN_URL, headers, body, timeout)
     request = Request(PIXIV_OAUTH_TOKEN_URL, data=body, headers=headers, method="POST")
     try:
-        with urlopen(request, timeout=timeout) as response:  # noqa: S310
+        opener = _pixiv_proxy_opener(_effective_pixiv_proxy(proxy_url))
+        open_response = opener.open(request, timeout=timeout) if opener is not None else urlopen(request, timeout=timeout)  # noqa: S310
+        with open_response as response:
             return json.loads(response.read().decode("utf-8"))
     except HTTPError as exc:
         detail = ""

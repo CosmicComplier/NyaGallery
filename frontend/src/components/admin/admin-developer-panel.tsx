@@ -1,13 +1,17 @@
 "use client";
 
 import type { Dispatch, ReactNode, SetStateAction } from "react";
-import { AlertTriangle, KeyRound, Save, Server, Settings2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, KeyRound, Plus, Save, Server, Settings2, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NumberField, ToggleField } from "@/components/admin/admin-fields";
 import { useI18n } from "@/components/providers/locale-provider";
 import type { BackendConfig, DeveloperConfigResponse, DeveloperConsoleResponse, UserSummary } from "@/lib/types";
+
+const NETWORK_SOURCE_OPTIONS = [
+  { source: "pixiv", label: "Pixiv" },
+] as const;
 
 type AdminDeveloperPanelProps = {
   busy: string | null;
@@ -47,6 +51,57 @@ export function AdminDeveloperPanel({
         : current
     ));
   }
+
+  function patchNetwork(values: Partial<BackendConfig["network"]>) {
+    onConfigDraftChange((current) => (
+      current
+        ? (() => {
+            const fallback = current.network ?? { default_proxy: "", proxies: [], sources: [] };
+            const network = { ...fallback, ...values };
+            return {
+              ...current,
+              network,
+            } as BackendConfig;
+          })()
+        : current
+    ));
+  }
+
+  function updateProxy(index: number, values: Partial<BackendConfig["network"]["proxies"][number]>) {
+    const network = configDraft?.network ?? { default_proxy: "", proxies: [], sources: [] };
+    patchNetwork({
+      proxies: network.proxies.map((proxy, proxyIndex) => (
+        proxyIndex === index ? { ...proxy, ...values } : proxy
+      )),
+    });
+  }
+
+  function addProxy() {
+    const network = configDraft?.network ?? { default_proxy: "", proxies: [], sources: [] };
+    patchNetwork({
+      proxies: [...network.proxies, { name: nextProxyName(network.proxies.map((proxy) => proxy.name)), url: "" }],
+    });
+  }
+
+  function setSourceProxy(source: string, proxy: string) {
+    const network = configDraft?.network ?? { default_proxy: "", proxies: [], sources: [] };
+    const sourceKey = normalizeSourceKey(source);
+    const nextSources = network.sources.filter((item) => normalizeSourceKey(item.source) !== sourceKey);
+    const proxyRef = proxy.trim();
+    if (proxyRef) {
+      nextSources.push({ source: sourceKey, proxy: proxyRef });
+    }
+    patchNetwork({
+      sources: nextSources,
+    });
+  }
+
+  function removeProxy(index: number) {
+    const network = configDraft?.network ?? { default_proxy: "", proxies: [], sources: [] };
+    patchNetwork({ proxies: network.proxies.filter((_proxy, proxyIndex) => proxyIndex !== index) });
+  }
+
+  const networkDraft = configDraft?.network ?? { default_proxy: "", proxies: [], sources: [] };
 
   return (
     <>
@@ -102,6 +157,87 @@ export function AdminDeveloperPanel({
               <TextField type="password" label="cookie" value={configDraft.pixiv.cookie} onChange={(value) => patch("pixiv", { cookie: value })} />
               <DecimalField label="default_request_delay_seconds" value={configDraft.pixiv.default_request_delay_seconds} onChange={(value) => patch("pixiv", { default_request_delay_seconds: value })} />
               <NumberField label="max_concurrency" value={configDraft.pixiv.max_concurrency} onChange={(value) => patch("pixiv", { max_concurrency: value })} />
+            </ConfigGroup>
+
+            <ConfigGroup title="Network">
+              <div className="md:col-span-2 xl:col-span-3">
+                <div className="rounded-md border border-border bg-muted/35 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                  {t("admin.developer.networkHint")}
+                </div>
+              </div>
+              <SelectField
+                label="default_proxy"
+                value={networkDraft.default_proxy}
+                options={proxyReferenceOptions(networkDraft, networkDraft.default_proxy, false)}
+                onChange={(value) => patchNetwork({ default_proxy: value })}
+              />
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground">{t("admin.developer.proxyProfiles")}</h4>
+                  <Button type="button" size="sm" variant="outline" onClick={addProxy}>
+                    <Plus className="h-4 w-4" /> {t("admin.developer.addProxyProfile")}
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {networkDraft.proxies.map((proxy, index) => (
+                    <div key={`${proxy.name}-${index}`} className="grid gap-2 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)_auto]">
+                      <TextField label="name" value={proxy.name} placeholder="local" onChange={(value) => updateProxy(index, { name: value })} />
+                      <TextField type="password" label="url" value={proxy.url ?? ""} placeholder="http://127.0.0.1:7890" onChange={(value) => updateProxy(index, { url: value })} />
+                      <IconButton label={t("common.removeItem", { item: proxy.name || "proxy" })} onClick={() => removeProxy(index)} />
+                      {proxy.url_configured && !proxy.url ? (
+                        <div className="md:col-span-3 rounded-md border border-border bg-muted/35 px-3 py-2 text-[11px] leading-5 text-muted-foreground">
+                          {t("admin.developer.proxyUrlConfigured")}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-2 md:col-span-2 xl:col-span-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-xs font-medium uppercase text-muted-foreground">{t("admin.developer.sourceProxyRules")}</h4>
+                </div>
+                <div className="space-y-2">
+                  {NETWORK_SOURCE_OPTIONS.map((source) => {
+                    const current = networkDraft.sources.find((item) => normalizeSourceKey(item.source) === source.source)?.proxy ?? "";
+                    return (
+                      <div key={source.source} className="grid gap-2 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
+                        <div className="space-y-1.5">
+                          <Label>source</Label>
+                          <div className="flex h-9 items-center justify-between gap-2 rounded-md border border-border bg-muted/35 px-3 text-sm">
+                            <span>{source.label}</span>
+                            <span className="font-mono text-xs text-muted-foreground">{source.source}</span>
+                          </div>
+                        </div>
+                        <SelectField
+                          label="proxy"
+                          value={current}
+                          options={proxyReferenceOptions(networkDraft, current, true)}
+                          onChange={(value) => setSourceProxy(source.source, value)}
+                        />
+                      </div>
+                    );
+                  })}
+                  {networkDraft.sources
+                    .filter((source) => !NETWORK_SOURCE_OPTIONS.some((option) => option.source === normalizeSourceKey(source.source)))
+                    .map((source) => (
+                      <div key={source.source} className="grid gap-2 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)]">
+                        <div className="space-y-1.5">
+                          <Label>source</Label>
+                          <div className="flex h-9 items-center rounded-md border border-border bg-muted/35 px-3 font-mono text-xs text-muted-foreground">
+                            {normalizeSourceKey(source.source)}
+                          </div>
+                        </div>
+                        <SelectField
+                          label="proxy"
+                          value={source.proxy}
+                          options={proxyReferenceOptions(networkDraft, source.proxy, true)}
+                          onChange={(value) => setSourceProxy(source.source, value)}
+                        />
+                      </div>
+                    ))}
+                </div>
+              </div>
             </ConfigGroup>
 
             <ConfigGroup title="Redis">
@@ -221,18 +357,103 @@ function TextField({
   value,
   onChange,
   type = "text",
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   type?: string;
+  placeholder?: string;
 }) {
   return (
     <div className="space-y-1.5">
       <Label>{label}</Label>
-      <Input type={type} value={value} onChange={(event) => onChange(event.target.value)} />
+      <Input type={type} value={value} placeholder={placeholder} onChange={(event) => onChange(event.target.value)} />
     </div>
   );
+}
+
+function SelectField({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label>{label}</Label>
+      <select
+        className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus-ring"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      >
+        {options.map((option) => (
+          <option key={`${option.value}:${option.label}`} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function IconButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <Button type="button" variant="outline" size="icon" className="mt-6" title={label} aria-label={label} onClick={onClick}>
+      <Trash2 className="h-4 w-4" />
+    </Button>
+  );
+}
+
+function nextProxyName(names: string[]) {
+  return nextName(names, "proxy");
+}
+
+function nextName(names: string[], base: string) {
+  const existing = new Set(names.map((name) => name.trim().toLowerCase()).filter(Boolean));
+  if (!existing.has(base)) return base;
+  let index = 2;
+  while (existing.has(`${base}-${index}`)) index += 1;
+  return `${base}-${index}`;
+}
+
+function normalizeSourceKey(value: string) {
+  return value.trim().toLowerCase().replace(/[-.]/g, "_");
+}
+
+function proxyReferenceOptions(
+  network: BackendConfig["network"],
+  currentValue: string,
+  includeDefault: boolean,
+) {
+  const options: { value: string; label: string }[] = [];
+  const seen = new Set<string>();
+
+  function add(value: string, label = value) {
+    const key = value.trim().toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    options.push({ value, label });
+  }
+
+  if (includeDefault) {
+    add("", "default_proxy");
+  } else if (!currentValue.trim()) {
+    add("", "direct");
+  }
+  add("direct");
+  for (const proxy of network.proxies) {
+    const name = proxy.name.trim();
+    if (name) add(name);
+  }
+  const current = currentValue.trim();
+  if (current) add(current);
+  return options;
 }
 
 function DecimalField({

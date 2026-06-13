@@ -32,6 +32,11 @@ export interface BackendConfig {
     default_request_delay_seconds: number;
     max_concurrency: number;
   };
+  network: {
+    default_proxy: string;
+    proxies: NetworkProxyConfig[];
+    sources: NetworkSourceConfig[];
+  };
   redis: {
     url: string;
     key_prefix: string;
@@ -49,6 +54,17 @@ export interface BackendConfig {
     config_editor_enabled: boolean;
     console_enabled: boolean;
   };
+}
+
+export interface NetworkProxyConfig {
+  name: string;
+  url: string;
+  url_configured?: boolean;
+}
+
+export interface NetworkSourceConfig {
+  source: string;
+  proxy: string;
 }
 
 export interface StorageStrategyConfig {
@@ -164,6 +180,7 @@ export interface PixivConfigResponse {
   storage_strategies: StorageStrategySummary[];
   default_storage_strategy: string;
   secret_encryption_enabled?: boolean;
+  proxy_enabled?: boolean;
   auth_modes: PixivAuthMode[];
   default_request_delay_seconds: number;
   max_concurrency: number;

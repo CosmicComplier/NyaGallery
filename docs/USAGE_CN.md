@@ -200,13 +200,23 @@ cookie = ""
 default_request_delay_seconds = 1.0
 max_concurrency = 1
 
+[network]
+default_proxy = "direct"
+
+[[network.proxies]]
+name = "direct"
+url = ""
+
+[network.sources.pixiv]
+proxy = "direct"
+
 [redis]
 url = ""
 key_prefix = "nyagallery"
 security_limiter = false
 ```
 
-优先级为：命令行参数 > 环境变量 > 配置文件 > 默认值。`icp_beian` 留空时前端页脚不会显示备案号；填写后会通过 `/api/site/config` 暴露给前端页脚。
+优先级为：命令行参数 > 环境变量 > 配置文件 > 默认值。`icp_beian` 留空时前端页脚不会显示备案号；填写后会通过 `/api/site/config` 暴露给前端页脚。后端不能直连某个来源时，可在 `[[network.proxies]]` 定义代理档案，再用 `[network.sources.pixiv]`、`[network.sources.x]`、`[network.sources.fanbox]` 等来源规则选择。`NYAGALLERY_NETWORK_PROXY` 或 `nyagallery --network-proxy http://127.0.0.1:7890 serve` 可作为部署级默认代理。
 
 Redis 是可选分布式基础设施，默认关闭。安装：
 
