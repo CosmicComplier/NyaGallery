@@ -1,6 +1,6 @@
 "use client";
 
-import type { Dispatch, SetStateAction } from "react";
+import { useEffect, type Dispatch, type SetStateAction } from "react";
 import { Copy, ExternalLink, FolderInput, Globe2, KeyRound, ListChecks, RefreshCw, ShieldAlert, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -207,6 +207,12 @@ export function AdminPixivPanel({
   const { t } = useI18n();
   const canSaveToken = Boolean(pixivRefreshToken.trim() && username);
   const canSaveCookie = Boolean(pixivCookie.trim() && username);
+
+  useEffect(() => {
+    if (pixivAuthMode === "public" && pixivSourceMode === "bookmarks") {
+      onPixivSourceModeChange("artist_works");
+    }
+  }, [pixivAuthMode]);
 
   return (
     <aside className="space-y-4">
@@ -560,7 +566,7 @@ export function AdminPixivPanel({
             onChange={(e) => onPixivSourceModeChange(e.target.value as PixivSourceMode)}
           >
             <option value="artist_works">{t("admin.pixiv.scopeArtistWorks")}</option>
-            <option value="bookmarks">{t("admin.pixiv.scopeBookmarks")}</option>
+            <option value="bookmarks" disabled={pixivAuthMode === "public"}>{t("admin.pixiv.scopeBookmarks")}</option>
             <option value="following" disabled>{t("admin.pixiv.scopeFollowing")}</option>
             <option value="search_tag" disabled>{t("admin.pixiv.scopeSearchTag")}</option>
             <option value="ranking" disabled>{t("admin.pixiv.scopeRanking")}</option>

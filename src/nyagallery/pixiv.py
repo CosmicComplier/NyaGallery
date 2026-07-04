@@ -76,6 +76,9 @@ class PixivClient(Protocol):
     def iter_user_bookmarks(self, user_id: str, restrict: str = "public") -> Iterable["PixivArtwork"]:
         ...
 
+    def iter_user_bookmark_ids(self, user_id: str, restrict: str = "public") -> Iterable[str]:
+        ...
+
 
 class Downloader(Protocol):
     def download(self, url: str) -> bytes:
@@ -797,16 +800,19 @@ class PixivPyClient:
             response = self._call_api(self.api.user_illusts, **next_qs)
 
     def iter_user_bookmarks(self, user_id: str, restrict: str = "public") -> Iterable[PixivArtwork]:
+        for pixiv_id in self.iter_user_bookmark_ids(user_id, restrict=restrict):
+            try:
+                yield self.get_illust(pixiv_id)
+            except RuntimeError:
+                continue
+
+    def iter_user_bookmark_ids(self, user_id: str, restrict: str = "public") -> Iterable[str]:
         response = self._call_api(self.api.user_bookmarks_illust, str(user_id), restrict=restrict)
         while True:
             for item in _get(response, "illusts", []) or []:
                 pixiv_id = str(_get(item, "id"))
-                if not pixiv_id:
-                    continue
-                try:
-                    yield self.get_illust(pixiv_id)
-                except RuntimeError:
-                    continue
+                if pixiv_id:
+                    yield pixiv_id
             next_url = _get(response, "next_url")
             if not next_url:
                 break
@@ -980,6 +986,13 @@ class PixivCookieClient:
             yield self.get_illust(pixiv_id)
 
     def iter_user_bookmarks(self, user_id: str, restrict: str = "public") -> Iterable[PixivArtwork]:
+        for pixiv_id in self.iter_user_bookmark_ids(user_id, restrict=restrict):
+            try:
+                yield self.get_illust(pixiv_id)
+            except RuntimeError:
+                continue
+
+    def iter_user_bookmark_ids(self, user_id: str, restrict: str = "public") -> Iterable[str]:
         offset = 0
         limit = 48
         while True:
@@ -995,10 +1008,7 @@ class PixivCookieClient:
             for item in works:
                 pixiv_id = str(_get(item, "id"))
                 if pixiv_id:
-                    try:
-                        yield self.get_illust(pixiv_id)
-                    except RuntimeError:
-                        continue
+                    yield pixiv_id
             has_next = _get(body, "hasNext", False)
             if not has_next:
                 break

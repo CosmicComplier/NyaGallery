@@ -2378,7 +2378,14 @@ class _PublicFirstPixivClient:
             yield from self._private().iter_user_illusts(user_id)
 
     def iter_user_bookmarks(self, user_id: str, restrict: str = "public"):
-        yield from self._private().iter_user_bookmarks(user_id, restrict=restrict)
+        for pixiv_id in self._private().iter_user_bookmark_ids(user_id, restrict=restrict):
+            try:
+                yield self.get_illust(pixiv_id)
+            except RuntimeError:
+                continue
+
+    def iter_user_bookmark_ids(self, user_id: str, restrict: str = "public"):
+        yield from self._private().iter_user_bookmark_ids(user_id, restrict=restrict)
 
 
 class _PublicFirstDownloader:
