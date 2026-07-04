@@ -83,6 +83,7 @@ export default function AdminPage() {
   const [pixivUid, setPixivUid] = useState("");
   const [pixivMode, setPixivMode] = useState<PixivMode>("pid");
   const [pixivSourceMode, setPixivSourceMode] = useState<PixivSourceMode>("artist_works");
+  const [pixivRestrict, setPixivRestrict] = useState<string>("public");
   const [pixivAuthMode, setPixivAuthMode] = useState<PixivAuthMode>("public");
   const {
     logs: pixivLogs,
@@ -377,12 +378,15 @@ export default function AdminPage() {
       retry_max_seconds: pixivRetryMax,
       concurrency: pixivConcurrency,
       dry_run: pixivDryRun,
+      restrict: pixivSourceMode === "bookmarks" ? pixivRestrict : undefined,
     };
     const result = await run(
       "pixiv",
-      () => pixivMode === "pid"
-        ? NyaApi.syncPixivPid(pid.trim(), options)
-        : NyaApi.syncPixivUser(pixivUid.trim(), options),
+      () => {
+        if (pixivMode === "pid") return NyaApi.syncPixivPid(pid.trim(), options);
+        if (pixivSourceMode === "bookmarks") return NyaApi.syncPixivBookmarks(pixivUid.trim(), options);
+        return NyaApi.syncPixivUser(pixivUid.trim(), options);
+      },
       (response) => pixivDryRun
         ? t("admin.page.dryRunDone", { count: response.preview?.length ?? 0 })
         : response.status === "queued"
@@ -479,6 +483,8 @@ export default function AdminPage() {
             onPixivLimitChange={setPixivLimit}
             pixivSourceMode={pixivSourceMode}
             onPixivSourceModeChange={setPixivSourceMode}
+            pixivRestrict={pixivRestrict}
+            onPixivRestrictChange={setPixivRestrict}
             pixivRebuildDb={pixivRebuildDb}
             onPixivRebuildDbChange={setPixivRebuildDb}
             pixivGenerateCache={pixivGenerateCache}

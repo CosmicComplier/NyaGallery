@@ -316,6 +316,12 @@ export const NyaApi = {
       { method: "POST", body: options }
     ),
 
+  syncPixivBookmarks: (uid: string, options: PixivSyncOptions = {}) =>
+    api<PixivSyncResponse>(
+      `/api/sync/pixiv/bookmarks/${encodeURIComponent(uid)}`,
+      { method: "POST", body: options }
+    ),
+
   userPixivTokens: (username: string) =>
     api<PixivTokenListResponse>(`/api/users/${encodeURIComponent(username)}/pixiv-tokens`),
 
