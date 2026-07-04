@@ -801,7 +801,12 @@ class PixivPyClient:
         while True:
             for item in _get(response, "illusts", []) or []:
                 pixiv_id = str(_get(item, "id"))
-                yield self.get_illust(pixiv_id)
+                if not pixiv_id:
+                    continue
+                try:
+                    yield self.get_illust(pixiv_id)
+                except RuntimeError:
+                    continue
             next_url = _get(response, "next_url")
             if not next_url:
                 break
@@ -990,7 +995,10 @@ class PixivCookieClient:
             for item in works:
                 pixiv_id = str(_get(item, "id"))
                 if pixiv_id:
-                    yield self.get_illust(pixiv_id)
+                    try:
+                        yield self.get_illust(pixiv_id)
+                    except RuntimeError:
+                        continue
             has_next = _get(body, "hasNext", False)
             if not has_next:
                 break
