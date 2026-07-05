@@ -212,13 +212,13 @@ export function AdminPixivPanel({
     if (pixivAuthMode === "public" && pixivSourceMode === "bookmarks") {
       onPixivSourceModeChange("artist_works");
     }
-  }, [pixivAuthMode]);
+  }, [pixivAuthMode, pixivSourceMode, onPixivSourceModeChange]);
 
   useEffect(() => {
     if (pixivMode === "pid" && pixivSourceMode === "bookmarks") {
       onPixivSourceModeChange("artist_works");
     }
-  }, [pixivMode]);
+  }, [pixivMode, pixivSourceMode, onPixivSourceModeChange]);
 
   return (
     <aside className="space-y-4">
