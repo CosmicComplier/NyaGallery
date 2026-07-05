@@ -55,6 +55,7 @@
       "animated": "Animated",
       "sizeUnknown": "Size unknown",
       "startTranscode": "Start transcode",
+      "cancelAll": "Cancel all",
       "title": "Uploads & Transcode",
       "transcodeJobs": "Transcode Jobs",
       "uploadHistory": "Upload History"
@@ -83,7 +84,9 @@
       "tagsRefreshed": "Tags refreshed",
       "tokenRequired": "PIXIV_REFRESH_TOKEN was not detected. Enter an OAuth/Token value, or switch to temporary Cookie sync.",
       "transcodeAlreadyRunning": "A transcode job is already running",
-      "transcodeQueued": "Added to transcode queue"
+      "transcodeQueued": "Added to transcode queue",
+      "cancelAllTranscodeConfirm": "Cancel all running and queued transcode jobs?",
+      "cancelAllTranscodeDone": "Cancelled {count} transcode jobs"
     },
     "sections": {
       "accounts": "Accounts",

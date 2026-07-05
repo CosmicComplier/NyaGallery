@@ -214,6 +214,12 @@ export function AdminPixivPanel({
     }
   }, [pixivAuthMode]);
 
+  useEffect(() => {
+    if (pixivMode === "pid" && pixivSourceMode === "bookmarks") {
+      onPixivSourceModeChange("artist_works");
+    }
+  }, [pixivMode]);
+
   return (
     <aside className="space-y-4">
       <section className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-sm">
@@ -566,7 +572,7 @@ export function AdminPixivPanel({
             onChange={(e) => onPixivSourceModeChange(e.target.value as PixivSourceMode)}
           >
             <option value="artist_works">{t("admin.pixiv.scopeArtistWorks")}</option>
-            <option value="bookmarks" disabled={pixivAuthMode === "public"}>{t("admin.pixiv.scopeBookmarks")}</option>
+            <option value="bookmarks" disabled={pixivAuthMode === "public" || pixivMode === "pid"}>{t("admin.pixiv.scopeBookmarks")}</option>
             <option value="following" disabled>{t("admin.pixiv.scopeFollowing")}</option>
             <option value="search_tag" disabled>{t("admin.pixiv.scopeSearchTag")}</option>
             <option value="ranking" disabled>{t("admin.pixiv.scopeRanking")}</option>

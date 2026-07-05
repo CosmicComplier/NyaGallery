@@ -76,6 +76,7 @@ from nyagallery.db import (
     mark_asset_pending_cleanup,
     normalize_asset_sort,
     normalize_sort_order,
+    now_utc,
     purge_pending_asset,
     random_asset,
     rebuild_database,
@@ -784,6 +785,27 @@ def create_app(
             offset=offset,
         )
         return {"items": [transcode_job_to_dict(job) for job in jobs], "limit": limit, "offset": offset}
+
+    @app.post("/api/transcode/cancel-all")
+    def api_cancel_all_transcode(
+        db: DbSession,
+        _principal: UploadPrincipal,
+    ) -> dict[str, object]:
+        now = now_utc()
+        rows = db.execute(
+            select(TranscodeJobModel)
+            .where(TranscodeJobModel.status.in_(("queued", "running")))
+        ).scalars().all()
+        count = len(rows)
+        for job in rows:
+            job.status = "error"
+            job.error = "cancelled by user"
+            job.stage = "cancelled"
+            job.message = "cancelled by user"
+            job.finished_at = now
+            job.updated_at = now
+        db.commit()
+        return {"cancelled": count}
 
     @app.post("/api/transcode/assets/{asset_key}/start")
     def api_start_transcode(

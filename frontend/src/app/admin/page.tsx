@@ -342,6 +342,16 @@ export default function AdminPage() {
     await refreshOperations(false);
   }
 
+  async function cancelAllTranscode() {
+    if (!window.confirm(t("admin.page.cancelAllTranscodeConfirm"))) return;
+    await run(
+      "cancel-all-transcode",
+      () => NyaApi.cancelAllTranscode(),
+      (result) => t("admin.page.cancelAllTranscodeDone", { count: result.cancelled })
+    );
+    await refreshOperations(false);
+  }
+
   async function syncPixiv() {
     const auth_mode = pixivAuthMode;
     if (auth_mode === "local_import") {
@@ -526,6 +536,7 @@ export default function AdminPage() {
             uploadLogs={uploadLogs}
             onRefresh={() => run("ops-refresh", () => refreshOperations(), () => t("admin.page.opsRefreshed"))}
             onStartTranscode={startTranscode}
+            onCancelAllTranscode={cancelAllTranscode}
           />
         )}
 

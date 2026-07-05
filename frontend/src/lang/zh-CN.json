@@ -55,6 +55,7 @@
       "animated": "动图",
       "sizeUnknown": "尺寸未知",
       "startTranscode": "开始转码",
+      "cancelAll": "全部取消",
       "title": "上传与转码",
       "transcodeJobs": "转码任务",
       "uploadHistory": "上传历史"
@@ -83,7 +84,9 @@
       "tagsRefreshed": "标签已刷新",
       "tokenRequired": "未检测到 PIXIV_REFRESH_TOKEN，请填入 OAuth/Token，或切换 Cookie 临时抓取。",
       "transcodeAlreadyRunning": "已有转码任务在运行",
-      "transcodeQueued": "已加入转码队列"
+      "transcodeQueued": "已加入转码队列",
+      "cancelAllTranscodeConfirm": "确定要取消所有正在运行和等待中的转码任务？",
+      "cancelAllTranscodeDone": "已取消 {count} 个转码任务"
     },
     "sections": {
       "accounts": "账户",
